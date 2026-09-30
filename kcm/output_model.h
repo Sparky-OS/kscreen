@@ -6,6 +6,7 @@
 #pragma once
 
 #include <kscreen/config.h>
+#include <kscreen/mode.h>
 #include <kscreen/output.h>
 
 #include <QAbstractListModel>
@@ -165,7 +166,12 @@ private:
     QSize resolution(const KScreen::OutputPtr &output) const;
     QVariantList resolutionsStrings(const KScreen::OutputPtr &output) const;
     QList<QSize> resolutions(const KScreen::OutputPtr &output) const;
-    QList<float> refreshRates(const KScreen::OutputPtr &output) const;
+    // one entry of the refresh rate list: a rate, and the HDMI 3D structure of a 3D mode
+    struct RefreshEntry {
+        float rate;
+        KScreen::Mode::Stereo3D stereo3D;
+    };
+    QList<RefreshEntry> refreshRates(const KScreen::OutputPtr &output) const;
 
     bool positionable(const Output &output) const;
 

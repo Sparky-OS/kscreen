@@ -44,3 +44,8 @@ QString Utils::outputName(const KScreen::Output *output, bool shouldShowSerialNu
     }
     return output->name();
 }
+
+bool Utils::isStereo3D(const KScreen::ModePtr &mode)
+{
+    return mode->stereo3D() != KScreen::Mode::Stereo3D::None;
+}

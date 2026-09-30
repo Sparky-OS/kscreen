@@ -16,4 +16,6 @@ namespace Utils
 {
 QString outputName(const KScreen::Output *output, bool shouldShowSerialNumber = false, bool shouldShowConnector = false);
 QString outputName(const KScreen::OutputPtr &output, bool shouldShowSerialNumber = false, bool shouldShowConnector = false);
+// an HDMI 3D mode: listed with the others, but only ever chosen by the user
+bool isStereo3D(const KScreen::ModePtr &mode);
 }
