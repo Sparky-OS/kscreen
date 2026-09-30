@@ -480,7 +480,7 @@ KScreen::ModePtr Generator::bestModeForSize(const KScreen::ModeList &modes, cons
 {
     KScreen::ModePtr bestMode;
     for (const KScreen::ModePtr &mode : modes) {
-        if (mode->size() != size) {
+        if (mode->size() != size || Utils::isStereo3D(mode)) {
             continue;
         }
 

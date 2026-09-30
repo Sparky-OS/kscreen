@@ -12,6 +12,7 @@
 
 #include "osdaction.h"
 #include "output.h"
+#include "utils.h"
 
 #include <KLocalizedString>
 #include <KScreen/Config>
@@ -95,6 +96,9 @@ KScreen::SetConfigOperation *OsdAction::applyAction(const QSharedPointer<KScreen
             const auto internalModes = internal->modes();
             const auto externalModes = external->modes();
             for (const auto &mode : internalModes) {
+                if (Utils::isStereo3D(mode)) {
+                    continue;
+                }
                 const bool shared = std::any_of(externalModes.begin(), externalModes.end(), [&mode](const auto &otherMode) {
                     return mode->size() == otherMode->size();
                 });
@@ -117,7 +121,7 @@ KScreen::SetConfigOperation *OsdAction::applyAction(const QSharedPointer<KScreen
                 list.erase(std::remove_if(list.begin(),
                                           list.end(),
                                           [&biggestSize](const auto &mode) {
-                                              return mode->size() != biggestSize;
+                                              return mode->size() != biggestSize || Utils::isStereo3D(mode);
                                           }),
                            list.end());
                 return *std::max_element(list.begin(), list.end(), [](const auto &left, const auto &right) {
@@ -139,6 +143,10 @@ KScreen::SetConfigOperation *OsdAction::applyAction(const QSharedPointer<KScreen
             const auto internalModesMap = internal->modes();
             Q_ASSERT(!internalModesMap.empty());
             auto bestModeIt = std::max_element(internalModesMap.cbegin(), internalModesMap.cend(), [](const auto &left, const auto &right) {
+                // a 3D mode always loses
+                if (Utils::isStereo3D(left) != Utils::isStereo3D(right)) {
+                    return Utils::isStereo3D(left);
+                }
                 const QSize leftSize = left->size();
                 const QSize rightSize = right->size();
                 return (leftSize.width() < rightSize.width() && leftSize.height() < rightSize.height())
@@ -159,6 +167,10 @@ KScreen::SetConfigOperation *OsdAction::applyAction(const QSharedPointer<KScreen
             const auto externalModesMap = external->modes();
             Q_ASSERT(!externalModesMap.empty());
             auto bestModeIt = std::max_element(externalModesMap.cbegin(), externalModesMap.cend(), [](const auto &left, const auto &right) {
+                // a 3D mode always loses
+                if (Utils::isStereo3D(left) != Utils::isStereo3D(right)) {
+                    return Utils::isStereo3D(left);
+                }
                 const QSize leftSize = left->size();
                 const QSize rightSize = right->size();
                 return (leftSize.width() < rightSize.width() && leftSize.height() < rightSize.height())

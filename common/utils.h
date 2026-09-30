@@ -19,4 +19,6 @@ QString outputName(const KScreen::OutputPtr &output, bool shouldShowSerialNumber
 
 QString sizeToString(const QSize &size);
 KScreen::ModePtr biggestMode(const KScreen::ModeList &modes);
+// an HDMI 3D mode: listed with the others, but only ever chosen by the user
+bool isStereo3D(const KScreen::ModePtr &mode);
 }

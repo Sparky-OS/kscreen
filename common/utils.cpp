@@ -50,6 +50,11 @@ QString Utils::sizeToString(const QSize &size)
     return QStringLiteral("%1x%2").arg(size.width()).arg(size.height());
 }
 
+bool Utils::isStereo3D(const KScreen::ModePtr &mode)
+{
+    return mode->stereo3D() != KScreen::Mode::Stereo3D::None;
+}
+
 KScreen::ModePtr Utils::biggestMode(const KScreen::ModeList &modes)
 {
     Q_ASSERT(!modes.isEmpty());
@@ -57,6 +62,9 @@ KScreen::ModePtr Utils::biggestMode(const KScreen::ModeList &modes)
     int modeArea, biggestArea = 0;
     KScreen::ModePtr biggestMode;
     for (const KScreen::ModePtr &mode : modes) {
+        if (isStereo3D(mode)) {
+            continue;
+        }
         modeArea = mode->size().width() * mode->size().height();
         if (modeArea < biggestArea) {
             continue;

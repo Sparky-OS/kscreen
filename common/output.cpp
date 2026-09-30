@@ -60,7 +60,7 @@ static Output::GlobalConfig fromInfo(const KScreen::OutputPtr output, const QVar
 
     const KScreen::ModeList modes = output->modes();
     for (const KScreen::ModePtr &mode : modes) {
-        if (mode->size() != size) {
+        if (mode->size() != size || Utils::isStereo3D(mode)) {
             continue;
         }
         if (!qFuzzyCompare(mode->refreshRate(), modeInfo[QStringLiteral("refresh")].toFloat())) {
