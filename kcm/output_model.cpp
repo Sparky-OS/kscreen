@@ -85,12 +85,14 @@ QVariant OutputModel::data(const QModelIndex &index, int role) const
         QVariantList ret;
         const auto entries = refreshRates(output);
         // suggestions: movies in frame packing at 24 Hz; games at full resolution per eye
-        // (frame packing at other rates), else top and bottom among the half formats
+        // (side by side full, frame packing at other rates), else top and bottom among the
+        // half formats
         const auto isMovieRate = [](float rate) {
             return rate > 23.9f && rate < 24.1f;
         };
-        const bool framePackedGames = std::ranges::any_of(entries, [&isMovieRate](const RefreshEntry &entry) {
-            return entry.stereo3D == KScreen::Mode::Stereo3D::FramePacking && !isMovieRate(entry.rate);
+        const bool fullResolutionGames = std::ranges::any_of(entries, [&isMovieRate](const RefreshEntry &entry) {
+            return entry.stereo3D == KScreen::Mode::Stereo3D::SideBySideFull
+                || (entry.stereo3D == KScreen::Mode::Stereo3D::FramePacking && !isMovieRate(entry.rate));
         });
         for (const auto &entry : entries) {
             const float rate = entry.rate;
@@ -121,8 +123,11 @@ QVariant OutputModel::data(const QModelIndex &index, int role) const
                     ret << i18nc("@item:inlistbox refresh rate of an HDMI 3D mode; %1 is the rate", "%1 (3D frame packing, suggested for games)", rateText);
                 }
                 break;
+            case KScreen::Mode::Stereo3D::SideBySideFull:
+                ret << i18nc("@item:inlistbox refresh rate of an HDMI 3D mode; %1 is the rate", "%1 (3D side by side full, suggested for games)", rateText);
+                break;
             case KScreen::Mode::Stereo3D::TopAndBottom:
-                if (framePackedGames) {
+                if (fullResolutionGames) {
                     ret << i18nc("@item:inlistbox refresh rate of an HDMI 3D mode; %1 is the rate", "%1 (3D top and bottom)", rateText);
                 } else {
                     ret << i18nc("@item:inlistbox refresh rate of an HDMI 3D mode; %1 is the rate", "%1 (3D top and bottom, suggested for games)", rateText);
@@ -886,20 +891,22 @@ QList<OutputModel::RefreshEntry> OutputModel::refreshRates(const KScreen::Output
             hits << RefreshEntry{rate, stereo3D};
         }
     }
-    // the 2D rates first, as always, then the 3D modes: frame packing (full resolution per
-    // eye), top and bottom, side by side
+    // the 2D rates first, as always, then the 3D modes: full resolution per eye (side by side
+    // full, frame packing), then the half formats (top and bottom, side by side)
     const auto order = [](KScreen::Mode::Stereo3D stereo3D) {
         switch (stereo3D) {
         case KScreen::Mode::Stereo3D::None:
             return 0;
-        case KScreen::Mode::Stereo3D::FramePacking:
+        case KScreen::Mode::Stereo3D::SideBySideFull:
             return 1;
-        case KScreen::Mode::Stereo3D::TopAndBottom:
+        case KScreen::Mode::Stereo3D::FramePacking:
             return 2;
-        case KScreen::Mode::Stereo3D::SideBySideHalf:
+        case KScreen::Mode::Stereo3D::TopAndBottom:
             return 3;
+        case KScreen::Mode::Stereo3D::SideBySideHalf:
+            return 4;
         }
-        return 4;
+        return 5;
     };
     std::ranges::stable_sort(hits, [&order](const RefreshEntry &a, const RefreshEntry &b) {
         if (order(a.stereo3D) != order(b.stereo3D)) {
