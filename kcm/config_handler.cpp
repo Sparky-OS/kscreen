@@ -170,6 +170,8 @@ bool ConfigHandler::checkSaveandTestCommon(bool isSaveCheck)
                     || (isSaveCheck && output->automaticBrightness() != config->automaticBrightness())
                     || output->hdrColorProfileSource() != config->hdrColorProfileSource()
                     || output->hdrIccProfilePath() != config->hdrIccProfilePath()
+                    || output->anaglyph() != config->anaglyph()
+                    || output->otherStereoFormats() != config->otherStereoFormats()
                     || output->abmLevel() != config->abmLevel()) {
                         return true;
                     }

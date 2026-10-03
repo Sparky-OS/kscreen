@@ -66,6 +66,8 @@ public:
         AutoBrightnessRole,
         HdrIccProfileRole,
         HdrColorProfileSourceRole,
+        AnaglyphRole,
+        OtherStereoFormatsRole,
         AbmLevelRole,
         NumberByConnectorRole,
         ReplicationSourceModelWithNumbersRole,
@@ -170,6 +172,7 @@ private:
     struct RefreshEntry {
         float rate;
         KScreen::Mode::Stereo3D stereo3D;
+        bool virtualStereo = false;
     };
     QList<RefreshEntry> refreshRates(const KScreen::OutputPtr &output) const;
 
