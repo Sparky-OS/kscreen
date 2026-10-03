@@ -10,3 +10,5 @@ if(KF6KCMUtils_VERSION VERSION_GREATER_EQUAL "6.27.0")
         ENVIRONMENT_MODIFICATION QT_PLUGIN_PATH=path_list_prepend:${CMAKE_BINARY_DIR}/bin
     )
 endif()
+
+ecm_add_tests(stereomodes.cpp LINK_LIBRARIES Qt6::Test KF6::I18n KF6::Screen)
