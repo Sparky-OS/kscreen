@@ -21,6 +21,8 @@ private Q_SLOTS:
             {Layout::ColumnsRightFirst, QStringLiteral("60 Hz (3D columns, right eye first)")},
             {Layout::CheckerboardLeftFirst, QStringLiteral("60 Hz (3D checkerboard, left eye first)")},
             {Layout::CheckerboardRightFirst, QStringLiteral("60 Hz (3D checkerboard, right eye first)")},
+            {Layout::SequentialLeftFirst, QStringLiteral("60 Hz (frame sequential, left eye first)")},
+            {Layout::SequentialRightFirst, QStringLiteral("60 Hz (frame sequential, right eye first)")},
         };
         for (const auto &[layout, label] : expected) {
             QCOMPARE(virtualStereoModeLabel(layout, QStringLiteral("60 Hz")), label);

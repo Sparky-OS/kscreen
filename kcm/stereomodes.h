@@ -27,6 +27,10 @@ inline QString virtualStereoModeLabel(KScreen::Mode::Stereo3D layout, const QStr
         return i18n("%1 (3D side by side, turn the display's 3D on by hand)", rateText);
     case KScreen::Mode::Stereo3D::TopAndBottom:
         return i18n("%1 (3D top and bottom, turn the display's 3D on by hand)", rateText);
+    case KScreen::Mode::Stereo3D::SequentialLeftFirst:
+        return i18n("%1 (frame sequential, left eye first)", rateText);
+    case KScreen::Mode::Stereo3D::SequentialRightFirst:
+        return i18n("%1 (frame sequential, right eye first)", rateText);
     default:
         return rateText;
     }
