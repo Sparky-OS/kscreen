@@ -68,6 +68,11 @@ public:
         HdrColorProfileSourceRole,
         AnaglyphRole,
         OtherStereoFormatsRole,
+        StereoPairPartnerModelRole,
+        StereoPairPartnerIndexRole,
+        StereoPairModeRole,
+        StereoPairRoleRole,
+        StereoPairReflectionRole,
         AbmLevelRole,
     };
     Q_ENUM(OutputRoles)
@@ -172,6 +177,8 @@ private:
         bool virtualStereo = false;
     };
     QList<RefreshEntry> refreshRates(const KScreen::OutputPtr &output) const;
+    QVariantList stereoPairPartnerModel(const KScreen::OutputPtr &output) const;
+    int stereoPairPartnerIndex(const KScreen::OutputPtr &output) const;
 
     bool positionable(const Output &output) const;
 

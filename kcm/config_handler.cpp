@@ -180,6 +180,10 @@ bool ConfigHandler::checkSaveandTestCommon(bool isSaveCheck)
                     || output->hdrIccProfilePath() != config->hdrIccProfilePath()
                     || output->anaglyph() != config->anaglyph()
                     || output->otherStereoFormats() != config->otherStereoFormats()
+                    || output->stereoPairPartner() != config->stereoPairPartner()
+                    || output->stereoPairMode() != config->stereoPairMode()
+                    || output->stereoPairRole() != config->stereoPairRole()
+                    || output->stereoPairReflection() != config->stereoPairReflection()
                     || output->abmLevel() != config->abmLevel()) {
                         return true;
                     }
