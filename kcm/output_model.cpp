@@ -227,6 +227,16 @@ QVariant OutputModel::data(const QModelIndex &index, int role) const
         return output->anaglyph();
     case OtherStereoFormatsRole:
         return output->otherStereoFormats();
+    case StereoPairPartnerModelRole:
+        return stereoPairPartnerModel(output);
+    case StereoPairPartnerIndexRole:
+        return stereoPairPartnerIndex(output);
+    case StereoPairModeRole:
+        return static_cast<uint32_t>(output->stereoPairMode());
+    case StereoPairRoleRole:
+        return static_cast<uint32_t>(output->stereoPairRole());
+    case StereoPairReflectionRole:
+        return static_cast<uint32_t>(output->stereoPairReflection());
     case AbmLevelRole:
         return output->abmLevel();
     case NumberByConnectorRole:
@@ -458,6 +468,37 @@ bool OutputModel::setData(const QModelIndex &index, const QVariant &value, int r
         output.ptr->setOtherStereoFormats(value.toBool());
         Q_EMIT dataChanged(index, index, {role});
         return true;
+    case StereoPairPartnerIndexRole: {
+        const int partnerIndex = value.toInt();
+        const auto partners = stereoPairPartnerModel(output.ptr);
+        if (partnerIndex < 0 || partnerIndex >= partners.size()) {
+            return false;
+        }
+        const QString partner = partners[partnerIndex].toMap().value(QStringLiteral("value")).toString();
+        if (output.ptr->stereoPairPartner() == partner) {
+            return false;
+        }
+        output.ptr->setStereoPairPartner(partner);
+        if (partner.isEmpty()) {
+            output.ptr->setStereoPairMode(KScreen::Output::StereoPairMode::None);
+            output.ptr->setStereoPairRole(KScreen::Output::StereoPairRole::Left);
+            output.ptr->setStereoPairReflection(KScreen::Output::StereoPairReflection::None);
+        }
+        Q_EMIT dataChanged(index, index, {StereoPairPartnerModelRole, StereoPairPartnerIndexRole, StereoPairModeRole, StereoPairRoleRole, StereoPairReflectionRole});
+        return true;
+    }
+    case StereoPairModeRole:
+        output.ptr->setStereoPairMode(static_cast<KScreen::Output::StereoPairMode>(value.toUInt()));
+        Q_EMIT dataChanged(index, index, {role, StereoPairRoleRole});
+        return true;
+    case StereoPairRoleRole:
+        output.ptr->setStereoPairRole(static_cast<KScreen::Output::StereoPairRole>(value.toUInt()));
+        Q_EMIT dataChanged(index, index, {role});
+        return true;
+    case StereoPairReflectionRole:
+        output.ptr->setStereoPairReflection(static_cast<KScreen::Output::StereoPairReflection>(value.toUInt()));
+        Q_EMIT dataChanged(index, index, {role});
+        return true;
     case AbmLevelRole:
         output.ptr->setAbmLevel(value.toUInt());
         Q_EMIT dataChanged(index, index, {role});
@@ -515,6 +556,11 @@ QHash<int, QByteArray> OutputModel::roleNames() const
     roles[HdrColorProfileSourceRole] = "hdrColorProfileSource";
     roles[AnaglyphRole] = "anaglyph";
     roles[OtherStereoFormatsRole] = "otherStereoFormats";
+    roles[StereoPairPartnerModelRole] = "stereoPairPartnerModel";
+    roles[StereoPairPartnerIndexRole] = "stereoPairPartnerIndex";
+    roles[StereoPairModeRole] = "stereoPairMode";
+    roles[StereoPairRoleRole] = "stereoPairRole";
+    roles[StereoPairReflectionRole] = "stereoPairReflection";
     roles[AbmLevelRole] = "abmLevel";
     roles[NumberByConnectorRole] = "numberByConnector";
     roles[ReplicationSourceModelWithNumbersRole] = "replicationSourceModelWithNumbers";
@@ -924,6 +970,30 @@ QList<QSize> OutputModel::resolutions(const KScreen::OutputPtr &output) const
         return false;
     });
     return hits;
+}
+
+QVariantList OutputModel::stereoPairPartnerModel(const KScreen::OutputPtr &output) const
+{
+    QVariantList result;
+    result << QVariantMap{{QStringLiteral("label"), i18n("No stereo pair")}, {QStringLiteral("value"), QString()}};
+    for (const auto &candidate : m_outputs) {
+        if (candidate.ptr == output || candidate.ptr->uuid().isEmpty()) {
+            continue;
+        }
+        result << QVariantMap{{QStringLiteral("label"), Utils::outputName(candidate.ptr, false, false)}, {QStringLiteral("value"), candidate.ptr->uuid()}};
+    }
+    return result;
+}
+
+int OutputModel::stereoPairPartnerIndex(const KScreen::OutputPtr &output) const
+{
+    const auto partners = stereoPairPartnerModel(output);
+    for (int i = 0; i < partners.size(); ++i) {
+        if (partners[i].toMap().value(QStringLiteral("value")).toString() == output->stereoPairPartner()) {
+            return i;
+        }
+    }
+    return 0;
 }
 
 QList<OutputModel::RefreshEntry> OutputModel::refreshRates(const KScreen::OutputPtr &output) const

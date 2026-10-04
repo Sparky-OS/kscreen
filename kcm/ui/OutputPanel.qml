@@ -56,6 +56,68 @@ Kirigami.Form {
         }
 
         Kirigami.FormEntry {
+            title: i18n("Stereo pair:")
+            visible: (element.capabilities & KScreen.Output.Capability.VirtualStereo) && element.otherStereoFormats && root.enabledOutputs.count >= 2
+            contentItem: QQC2.ComboBox {
+                Layout.minimumWidth: root.comboboxWidth
+                model: element.stereoPairPartnerModel
+                textRole: "label"
+                valueRole: "value"
+                onActivated: element.stereoPairPartnerIndex = currentIndex
+                Component.onCompleted: currentIndex = Qt.binding(() => element.stereoPairPartnerIndex)
+            }
+        }
+
+        Kirigami.FormEntry {
+            title: i18n("Pair type:")
+            visible: (element.capabilities & KScreen.Output.Capability.VirtualStereo) && element.otherStereoFormats && root.enabledOutputs.count >= 2 && element.stereoPairPartnerIndex > 0
+            contentItem: QQC2.ComboBox {
+                Layout.minimumWidth: root.comboboxWidth
+                model: [
+                    { label: i18n("Dual projection"), value: KScreen.Output.StereoPairMode.DualProjection },
+                    { label: i18n("Mirror rig"), value: KScreen.Output.StereoPairMode.MirrorRig },
+                    { label: i18n("iZ3D monitor"), value: KScreen.Output.StereoPairMode.Ized3d },
+                ]
+                textRole: "label"
+                valueRole: "value"
+                onActivated: element.stereoPairMode = currentValue
+                Component.onCompleted: currentIndex = indexOfValue(element.stereoPairMode)
+            }
+        }
+
+        Kirigami.FormEntry {
+            title: i18n("This output:")
+            visible: (element.capabilities & KScreen.Output.Capability.VirtualStereo) && element.otherStereoFormats && root.enabledOutputs.count >= 2 && element.stereoPairPartnerIndex > 0
+            contentItem: QQC2.ComboBox {
+                Layout.minimumWidth: root.comboboxWidth
+                model: element.stereoPairMode === KScreen.Output.StereoPairMode.Ized3d
+                    ? [ { label: i18n("Back input"), value: KScreen.Output.StereoPairRole.Back }, { label: i18n("Front input"), value: KScreen.Output.StereoPairRole.Front } ]
+                    : [ { label: i18n("Left eye"), value: KScreen.Output.StereoPairRole.Left }, { label: i18n("Right eye"), value: KScreen.Output.StereoPairRole.Right } ]
+                textRole: "label"
+                valueRole: "value"
+                onActivated: element.stereoPairRole = currentValue
+                Component.onCompleted: currentIndex = indexOfValue(element.stereoPairRole)
+            }
+        }
+
+        Kirigami.FormEntry {
+            title: i18n("Reflection:")
+            visible: (element.capabilities & KScreen.Output.Capability.VirtualStereo) && element.otherStereoFormats && root.enabledOutputs.count >= 2 && element.stereoPairPartnerIndex > 0 && element.stereoPairMode === KScreen.Output.StereoPairMode.MirrorRig
+            contentItem: QQC2.ComboBox {
+                Layout.minimumWidth: root.comboboxWidth
+                model: [
+                    { label: i18n("None"), value: KScreen.Output.StereoPairReflection.None },
+                    { label: i18n("Horizontal"), value: KScreen.Output.StereoPairReflection.Horizontal },
+                    { label: i18n("Vertical"), value: KScreen.Output.StereoPairReflection.Vertical },
+                ]
+                textRole: "label"
+                valueRole: "value"
+                onActivated: element.stereoPairReflection = currentValue
+                Component.onCompleted: currentIndex = indexOfValue(element.stereoPairReflection)
+            }
+        }
+
+        Kirigami.FormEntry {
             visible: element.capabilities & KScreen.Output.Capability.VirtualStereo
             contentItem: ColumnLayout {
                 QQC2.CheckBox {
