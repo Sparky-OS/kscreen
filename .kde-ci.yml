@@ -21,10 +21,10 @@ Dependencies:
     'frameworks/kcmutils': '@latest-kf6'
     'frameworks/kirigami': '@latest-kf6'
     'frameworks/kitemmodels': '@latest-kf6'
-    'plasma/libplasma': '@same'
-    'plasma/libkscreen': '@same'
-    'plasma/layer-shell-qt': '@same'
-    'plasma/plasma5support': '@same'
+    'plasma/libplasma': 'Plasma/6.7'
+    'plasma/libkscreen': 'Plasma/6.7'
+    'plasma/layer-shell-qt': 'Plasma/6.7'
+    'plasma/plasma5support': 'Plasma/6.7'
 
 RuntimeDependencies:
  - 'on': ['@all']
