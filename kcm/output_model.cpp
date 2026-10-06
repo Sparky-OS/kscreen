@@ -94,7 +94,7 @@ QVariant OutputModel::data(const QModelIndex &index, int role) const
             return rate > 59.9f;
         };
         const bool fullResolutionGames = std::ranges::any_of(entries, [&isGameRate](const RefreshEntry &entry) {
-            return (entry.stereo3D == KScreen::Mode::Stereo3D::SideBySideFull || entry.stereo3D == KScreen::Mode::Stereo3D::FramePacking)
+            return (entry.stereo3D == Utils::Stereo3D::SideBySideFull || entry.stereo3D == Utils::Stereo3D::FramePacking)
                 && isGameRate(entry.rate);
         });
         for (const auto &entry : entries) {
@@ -116,10 +116,10 @@ QVariant OutputModel::data(const QModelIndex &index, int role) const
             const QString rateText = ki18n("%1 Hz").subs(rate, 0, 'f', showMore ? 3 : 2).toString();
             // a 3D mode turns the display's 3D on
             switch (entry.stereo3D) {
-            case KScreen::Mode::Stereo3D::None:
+            case Utils::Stereo3D::None:
                 ret << rateText;
                 break;
-            case KScreen::Mode::Stereo3D::FramePacking:
+            case Utils::Stereo3D::FramePacking:
                 if (isMovieRate(rate)) {
                     ret << i18nc("@item:inlistbox refresh rate of an HDMI 3D mode; %1 is the rate", "%1 (3D frame packing, suggested for movies)", rateText);
                 } else if (isGameRate(rate)) {
@@ -128,21 +128,21 @@ QVariant OutputModel::data(const QModelIndex &index, int role) const
                     ret << i18nc("@item:inlistbox refresh rate of an HDMI 3D mode; %1 is the rate", "%1 (3D frame packing)", rateText);
                 }
                 break;
-            case KScreen::Mode::Stereo3D::SideBySideFull:
+            case Utils::Stereo3D::SideBySideFull:
                 if (isGameRate(rate)) {
                     ret << i18nc("@item:inlistbox refresh rate of an HDMI 3D mode; %1 is the rate", "%1 (3D side by side full, suggested for games)", rateText);
                 } else {
                     ret << i18nc("@item:inlistbox refresh rate of an HDMI 3D mode; %1 is the rate", "%1 (3D side by side full)", rateText);
                 }
                 break;
-            case KScreen::Mode::Stereo3D::TopAndBottom:
+            case Utils::Stereo3D::TopAndBottom:
                 if (fullResolutionGames || !isGameRate(rate)) {
                     ret << i18nc("@item:inlistbox refresh rate of an HDMI 3D mode; %1 is the rate", "%1 (3D top and bottom)", rateText);
                 } else {
                     ret << i18nc("@item:inlistbox refresh rate of an HDMI 3D mode; %1 is the rate", "%1 (3D top and bottom, suggested for games)", rateText);
                 }
                 break;
-            case KScreen::Mode::Stereo3D::SideBySideHalf:
+            case Utils::Stereo3D::SideBySideHalf:
                 ret << i18nc("@item:inlistbox refresh rate of an HDMI 3D mode; %1 is the rate", "%1 (3D side by side)", rateText);
                 break;
             }
@@ -649,20 +649,20 @@ bool OutputModel::setResolution(int outputIndex, int resIndex)
     const QSize size = resolutionList[resIndex];
 
     const float oldRate = output.ptr->currentMode() ? output.ptr->currentMode()->refreshRate() : -1;
-    const auto oldStereo3D = output.ptr->currentMode() ? output.ptr->currentMode()->stereo3D() : KScreen::Mode::Stereo3D::None;
+    const auto oldStereo3D = output.ptr->currentMode() ? Utils::stereo3D(output.ptr->currentMode()) : Utils::Stereo3D::None;
     const auto modes = output.ptr->modes();
 
     // the same refresh rate and the same 3D structure; a size without that 3D mode goes 2D
-    auto findMode = [&modes, size, oldRate](KScreen::Mode::Stereo3D stereo3D) {
+    auto findMode = [&modes, size, oldRate](Utils::Stereo3D stereo3D) {
         return std::ranges::find_if(modes, [size, oldRate, stereo3D](const KScreen::ModePtr &mode) {
             // TODO: we don't want to compare against old refresh rate if
             //       refresh rate selection is auto.
-            return mode->size() == size && refreshRateCompare(mode->refreshRate(), oldRate) && mode->stereo3D() == stereo3D;
+            return mode->size() == size && refreshRateCompare(mode->refreshRate(), oldRate) && Utils::stereo3D(mode) == stereo3D;
         });
     };
     auto modeIt = findMode(oldStereo3D);
-    if (modeIt == modes.end() && oldStereo3D != KScreen::Mode::Stereo3D::None) {
-        modeIt = findMode(KScreen::Mode::Stereo3D::None);
+    if (modeIt == modes.end() && oldStereo3D != Utils::Stereo3D::None) {
+        modeIt = findMode(Utils::Stereo3D::None);
     }
 
     if (modeIt == modes.end()) {
@@ -716,11 +716,11 @@ bool OutputModel::setRefreshRate(int outputIndex, int refIndex)
     auto modeIt = std::ranges::find_if(modes, [oldMode, entry](const KScreen::ModePtr &mode) {
         // TODO: we don't want to compare against old refresh rate if
         //       refresh rate selection is auto.
-        return mode->size() == oldMode->size() && refreshRateCompare(mode->refreshRate(), entry.rate) && mode->stereo3D() == entry.stereo3D;
+        return mode->size() == oldMode->size() && refreshRateCompare(mode->refreshRate(), entry.rate) && Utils::stereo3D(mode) == entry.stereo3D;
     });
     Q_ASSERT(modeIt != modes.end());
 
-    if (refreshRateCompare(oldMode->refreshRate(), (*modeIt)->refreshRate()) && oldMode->stereo3D() == (*modeIt)->stereo3D()) {
+    if (refreshRateCompare(oldMode->refreshRate(), (*modeIt)->refreshRate()) && Utils::stereo3D(oldMode) == Utils::stereo3D(*modeIt)) {
         // no change
         return false;
     }
@@ -791,7 +791,7 @@ int OutputModel::refreshRateIndex(const KScreen::OutputPtr &output) const
     }
     const auto entries = refreshRates(output);
     const float currentRate = output->currentMode()->refreshRate();
-    const auto currentStereo3D = output->currentMode()->stereo3D();
+    const auto currentStereo3D = Utils::stereo3D(output->currentMode());
 
     const auto it = std::ranges::find_if(entries, [currentRate, currentStereo3D](const RefreshEntry &entry) {
         return refreshRateCompare(entry.rate, currentRate) && entry.stereo3D == currentStereo3D;
@@ -892,7 +892,7 @@ QList<OutputModel::RefreshEntry> OutputModel::refreshRates(const KScreen::Output
             continue;
         }
         const float rate = mode->refreshRate();
-        const auto stereo3D = mode->stereo3D();
+        const auto stereo3D = Utils::stereo3D(mode);
         const bool hasDuplicate = std::ranges::any_of(hits, [rate, stereo3D](const RefreshEntry &entry) {
             return refreshRateCompare(entry.rate, rate) && entry.stereo3D == stereo3D;
         });
@@ -902,17 +902,17 @@ QList<OutputModel::RefreshEntry> OutputModel::refreshRates(const KScreen::Output
     }
     // the 2D rates first, as always, then the 3D modes: full resolution per eye (side by side
     // full, frame packing), then the half formats (top and bottom, side by side)
-    const auto order = [](KScreen::Mode::Stereo3D stereo3D) {
+    const auto order = [](Utils::Stereo3D stereo3D) {
         switch (stereo3D) {
-        case KScreen::Mode::Stereo3D::None:
+        case Utils::Stereo3D::None:
             return 0;
-        case KScreen::Mode::Stereo3D::SideBySideFull:
+        case Utils::Stereo3D::SideBySideFull:
             return 1;
-        case KScreen::Mode::Stereo3D::FramePacking:
+        case Utils::Stereo3D::FramePacking:
             return 2;
-        case KScreen::Mode::Stereo3D::TopAndBottom:
+        case Utils::Stereo3D::TopAndBottom:
             return 3;
-        case KScreen::Mode::Stereo3D::SideBySideHalf:
+        case Utils::Stereo3D::SideBySideHalf:
             return 4;
         }
         return 5;

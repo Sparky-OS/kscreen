@@ -57,6 +57,16 @@ set_package_properties(KF6ImageFormats PROPERTIES
 )
 
 find_package(KF6Screen ${PROJECT_DEP_VERSION} REQUIRED)
+
+# The HDMI 3D structure of a mode is in libkscreen as we carry it, not in the one KDE ships
+include(CheckCXXSourceCompiles)
+set(CMAKE_REQUIRED_LIBRARIES KF6::Screen)
+check_cxx_source_compiles("
+    #include <KScreen/Mode>
+    int main() { KScreen::Mode mode; return static_cast<int>(mode.stereo3D()) + static_cast<int>(KScreen::Mode::Stereo3D::FramePacking); }"
+    HAVE_LIBKSCREEN_STEREO3D)
+unset(CMAKE_REQUIRED_LIBRARIES)
+add_feature_info(Stereo3DModes HAVE_LIBKSCREEN_STEREO3D "HDMI 3D modes in the display settings (needs libkscreen with Mode::stereo3D())")
 find_package(Plasma ${PROJECT_DEP_VERSION} REQUIRED)
 find_package(PlasmaQuick ${PROJECT_DEP_VERSION} REQUIRED)
 
@@ -94,6 +104,7 @@ ecm_find_qmlmodule(org.kde.kitemmodels REQUIRED)
 ecm_find_qmlmodule(org.kde.plasma.plasma5support REQUIRED)
 
 configure_file(config-X11.h.cmake ${CMAKE_CURRENT_BINARY_DIR}/config-X11.h)
+configure_file(config-stereo3d.h.cmake ${CMAKE_CURRENT_BINARY_DIR}/config-stereo3d.h)
 
 ecm_set_disabled_deprecation_versions(QT 6.8.0
     KF 6.12.0

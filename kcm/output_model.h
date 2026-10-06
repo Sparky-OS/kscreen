@@ -9,6 +9,8 @@
 #include <kscreen/mode.h>
 #include <kscreen/output.h>
 
+#include "common/utils.h"
+
 #include <QAbstractListModel>
 #include <QPoint>
 #include <optional>
@@ -166,7 +168,7 @@ private:
     // one entry of the refresh rate list: a rate, and the HDMI 3D structure of a 3D mode
     struct RefreshEntry {
         float rate;
-        KScreen::Mode::Stereo3D stereo3D;
+        Utils::Stereo3D stereo3D;
     };
     QList<RefreshEntry> refreshRates(const KScreen::OutputPtr &output) const;
 

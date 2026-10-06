@@ -52,7 +52,7 @@ QString Utils::sizeToString(const QSize &size)
 
 bool Utils::isStereo3D(const KScreen::ModePtr &mode)
 {
-    return mode->stereo3D() != KScreen::Mode::Stereo3D::None;
+    return stereo3D(mode) != Stereo3D::None;
 }
 
 KScreen::ModePtr Utils::biggestMode(const KScreen::ModeList &modes)
