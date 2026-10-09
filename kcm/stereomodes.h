@@ -4,6 +4,11 @@
 #include <KLocalizedString>
 #include <KScreen/Mode>
 
+inline bool isAnaglyph(KScreen::Mode::Stereo3D layout)
+{
+    return layout == KScreen::Mode::Stereo3D::AnaglyphModern || layout == KScreen::Mode::Stereo3D::AnaglyphCrt;
+}
+
 inline QString virtualStereoModeLabel(KScreen::Mode::Stereo3D layout, const QString &rateText)
 {
     switch (layout) {

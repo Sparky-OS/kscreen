@@ -12,3 +12,10 @@ if(KF6KCMUtils_VERSION VERSION_GREATER_EQUAL "6.27.0")
 endif()
 
 ecm_add_tests(stereomodes.cpp LINK_LIBRARIES Qt6::Test KF6::I18n KF6::Screen)
+
+ecm_add_test(anaglyphselection.cpp
+    ../kcm/output_model.cpp ../kcm/config_handler.cpp
+    ${CMAKE_BINARY_DIR}/kcm/kcm_screen_debug.cpp
+    TEST_NAME anaglyphselection
+    LINK_LIBRARIES Qt6::Test Qt6::Gui Qt6::DBus KF6::Screen KF6::I18n KF6::ConfigCore KF6::CoreAddons kscreen_common)
+target_include_directories(anaglyphselection PRIVATE ${CMAKE_BINARY_DIR}/kcm)
