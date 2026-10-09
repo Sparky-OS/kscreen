@@ -169,7 +169,14 @@ private:
     int refreshRateIndex(const KScreen::OutputPtr &output) const;
     QSize resolution(const KScreen::OutputPtr &output) const;
     QVariantList resolutionsStrings(const KScreen::OutputPtr &output) const;
-    QList<QSize> resolutions(const KScreen::OutputPtr &output) const;
+    struct ResolutionEntry {
+        QSize size;
+        // Anaglyph is a colour conversion at this size, independent of refresh rate.
+        // None groups the ordinary and display-specific stereo timings.
+        KScreen::Mode::Stereo3D anaglyph = KScreen::Mode::Stereo3D::None;
+        bool operator==(const ResolutionEntry &) const = default;
+    };
+    QList<ResolutionEntry> resolutions(const KScreen::OutputPtr &output) const;
     // one entry of the refresh rate list: a rate, and the HDMI 3D structure of a 3D mode
     struct RefreshEntry {
         float rate;

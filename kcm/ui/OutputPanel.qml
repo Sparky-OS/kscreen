@@ -45,7 +45,7 @@ Kirigami.FormLayout {
         QQC2.Label {
             Layout.maximumWidth: Kirigami.Units.gridUnit * 32
             wrapMode: Text.WordWrap
-            text: i18n("Lists anaglyph modes for modern screens and CRTs after applying. Changes colours: best for viewing, renders and presentations; choose a full-colour format for colour-coded work such as CAD drawing.")
+            text: i18n("After applying, choose anaglyph for modern screens or CRTs under Resolution. Changes colours: best for viewing, renders and presentations; choose a full-colour format for colour-coded work such as CAD drawing.")
         }
     }
 
