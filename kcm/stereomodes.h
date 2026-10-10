@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 #pragma once
 
+#include "config-stereo.h"
+
+#if HAVE_KSCREEN_STEREO
 #include <KLocalizedString>
 #include <KScreen/Mode>
 
@@ -40,3 +43,4 @@ inline QString virtualStereoModeLabel(KScreen::Mode::Stereo3D layout, const QStr
         return rateText;
     }
 }
+#endif

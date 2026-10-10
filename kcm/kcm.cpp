@@ -240,6 +240,11 @@ bool KCMKScreen::screenNormalized() const
     return m_screenNormalized;
 }
 
+bool KCMKScreen::stereoSupported() const
+{
+    return HAVE_KSCREEN_STEREO;
+}
+
 bool KCMKScreen::tabletModeAvailable() const
 {
     if (!m_configHandler || !m_configHandler->config()) {

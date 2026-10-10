@@ -5,6 +5,7 @@
 */
 
 #include "utils.h"
+#include "config-stereo.h"
 
 #include <kscreen/edid.h>
 #include <kscreen/mode.h>
@@ -47,5 +48,10 @@ QString Utils::outputName(const KScreen::Output *output, bool shouldShowSerialNu
 
 bool Utils::isStereo3D(const KScreen::ModePtr &mode)
 {
+#if HAVE_KSCREEN_STEREO
     return mode->virtualStereo() || mode->stereo3D() != KScreen::Mode::Stereo3D::None;
+#else
+    Q_UNUSED(mode)
+    return false;
+#endif
 }
