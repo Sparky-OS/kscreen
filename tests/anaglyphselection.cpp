@@ -26,7 +26,7 @@ class AnaglyphSelectionTest : public QObject
         return m;
     }
 
-    static KScreen::OutputPtr configure(ConfigHandler &handler, const QList<KScreen::ModePtr> &modes)
+    static KScreen::OutputPtr configure(ConfigHandler &handler, const QList<KScreen::ModePtr> &modes, bool secondOutput = false)
     {
         KScreen::ConfigPtr config(new KScreen::Config);
         config->setScreen(KScreen::ScreenPtr(new KScreen::Screen));
@@ -36,6 +36,7 @@ class AnaglyphSelectionTest : public QObject
         output->setName(QStringLiteral("AOC-test"));
         output->setConnected(true);
         output->setEnabled(true);
+        output->setCapabilities(KScreen::Output::Capability::VirtualStereo);
         KScreen::ModeList list;
         for (const auto &m : modes) {
             list.insert(m->id(), m);
@@ -45,6 +46,13 @@ class AnaglyphSelectionTest : public QObject
         output->setSize(modes.first()->size());
         output->setExplicitLogicalSize(modes.first()->size());
         config->addOutput(output);
+        if (secondOutput) {
+            auto second = output->clone();
+            second->setId(2);
+            second->setName(QStringLiteral("Second-test"));
+            second->setPos(QPoint(modes.first()->size().width(), 0));
+            config->addOutput(second);
+        }
         handler.setConfig(config);
         return output;
     }
@@ -61,6 +69,38 @@ private Q_SLOTS:
         qputenv("KSCREEN_BACKEND", "Fake");
         KLocalizedString::setApplicationDomain("kcm_kscreen");
         KLocalizedString::setLanguages({QStringLiteral("en_US")});
+    }
+
+    void togglesArePerOutput()
+    {
+        ConfigHandler handler;
+        auto first = configure(handler, {mode("base", Layout::None)}, true);
+        auto second = handler.config()->output(2);
+        QVERIFY(second);
+        auto model = handler.outputModel();
+        const auto firstIndex = model->indexForOutput(first);
+        const auto secondIndex = model->indexForOutput(second);
+        QSignalSpy dirty(&handler, &ConfigHandler::needsSaveChecked);
+
+        QVERIFY(!first->anaglyph());
+        QVERIFY(!second->anaglyph());
+        QVERIFY(model->setData(firstIndex, true, OutputModel::AnaglyphRole));
+        QVERIFY(first->anaglyph());
+        QVERIFY(!second->anaglyph());
+        QVERIFY(!first->otherStereoFormats());
+        QCOMPARE(first->currentModeId(), QStringLiteral("base"));
+        QVERIFY(!dirty.isEmpty());
+        QVERIFY(dirty.last().first().toBool());
+
+        QVERIFY(model->setData(firstIndex, false, OutputModel::AnaglyphRole));
+        QVERIFY(!dirty.last().first().toBool());
+        QVERIFY(model->setData(secondIndex, true, OutputModel::AnaglyphRole));
+        QVERIFY(!first->anaglyph());
+        QVERIFY(second->anaglyph());
+        QVERIFY(dirty.last().first().toBool());
+        QCOMPARE(second->currentModeId(), QStringLiteral("base"));
+        QVERIFY(!model->data(firstIndex, OutputModel::AnaglyphRole).toBool());
+        QVERIFY(model->data(secondIndex, OutputModel::AnaglyphRole).toBool());
     }
 
     void oneRateOffersAnaglyphInResolution_data()
