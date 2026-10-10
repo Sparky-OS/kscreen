@@ -35,88 +35,94 @@ Kirigami.FormLayout {
        visible: kcm.multipleScreensAvailable
     }
 
-    ColumnLayout {
-        visible: element.capabilities & KScreen.Output.Capability.VirtualStereo
-        QQC2.CheckBox {
-            text: i18n("Anaglyph")
-            checked: element.anaglyph
-            onToggled: element.anaglyph = checked
-        }
-        QQC2.Label {
-            Layout.maximumWidth: Kirigami.Units.gridUnit * 32
-            wrapMode: Text.WordWrap
-            text: i18n("After applying, choose anaglyph for modern screens or CRTs under Resolution. Changes colours: best for viewing, renders and presentations; choose a full-colour format for colour-coded work such as CAD drawing.")
-        }
-    }
+    Loader {
+        active: kcm.stereoSupported && (element.capabilities & KScreen.Output.Capability.VirtualStereo)
+        visible: active
+        sourceComponent: ColumnLayout {
+            ColumnLayout {
+                visible: element.capabilities & KScreen.Output.Capability.VirtualStereo
+                QQC2.CheckBox {
+                    text: i18n("Anaglyph")
+                    checked: element.anaglyph
+                    onToggled: element.anaglyph = checked
+                }
+                QQC2.Label {
+                    Layout.maximumWidth: Kirigami.Units.gridUnit * 32
+                    wrapMode: Text.WordWrap
+                    text: i18n("After applying, choose anaglyph for modern screens or CRTs under Resolution. Changes colours: best for viewing, renders and presentations; choose a full-colour format for colour-coded work such as CAD drawing.")
+                }
+            }
 
-    ColumnLayout {
-        visible: (element.capabilities & KScreen.Output.Capability.VirtualStereo) && element.otherStereoFormats && root.enabledOutputs.count >= 2
+            ColumnLayout {
+                visible: (element.capabilities & KScreen.Output.Capability.VirtualStereo) && element.otherStereoFormats && root.enabledOutputs.count >= 2
 
-        QQC2.ComboBox {
-            Kirigami.FormData.label: i18n("Stereo pair:")
-            Layout.minimumWidth: root.comboboxWidth
-            model: element.stereoPairPartnerModel
-            textRole: "label"
-            valueRole: "value"
-            onActivated: element.stereoPairPartnerIndex = currentIndex
-            Component.onCompleted: currentIndex = Qt.binding(() => element.stereoPairPartnerIndex)
-        }
+                QQC2.ComboBox {
+                    Kirigami.FormData.label: i18n("Stereo pair:")
+                    Layout.minimumWidth: root.comboboxWidth
+                    model: element.stereoPairPartnerModel
+                    textRole: "label"
+                    valueRole: "value"
+                    onActivated: element.stereoPairPartnerIndex = currentIndex
+                    Component.onCompleted: currentIndex = Qt.binding(() => element.stereoPairPartnerIndex)
+                }
 
-        QQC2.ComboBox {
-            Kirigami.FormData.label: i18n("Pair type:")
-            Layout.minimumWidth: root.comboboxWidth
-            visible: element.stereoPairPartnerIndex > 0
-            model: [
-                { label: i18n("Dual projection"), value: KScreen.Output.StereoPairMode.DualProjection },
-                { label: i18n("Mirror rig"), value: KScreen.Output.StereoPairMode.MirrorRig },
-                { label: i18n("iZ3D monitor"), value: KScreen.Output.StereoPairMode.Ized3d },
-            ]
-            textRole: "label"
-            valueRole: "value"
-            onActivated: element.stereoPairMode = currentValue
-            Component.onCompleted: currentIndex = indexOfValue(element.stereoPairMode)
-        }
+                QQC2.ComboBox {
+                    Kirigami.FormData.label: i18n("Pair type:")
+                    Layout.minimumWidth: root.comboboxWidth
+                    visible: element.stereoPairPartnerIndex > 0
+                    model: [
+                        { label: i18n("Dual projection"), value: KScreen.Output.StereoPairMode.DualProjection },
+                        { label: i18n("Mirror rig"), value: KScreen.Output.StereoPairMode.MirrorRig },
+                        { label: i18n("iZ3D monitor"), value: KScreen.Output.StereoPairMode.Ized3d },
+                    ]
+                    textRole: "label"
+                    valueRole: "value"
+                    onActivated: element.stereoPairMode = currentValue
+                    Component.onCompleted: currentIndex = indexOfValue(element.stereoPairMode)
+                }
 
-        QQC2.ComboBox {
-            Kirigami.FormData.label: i18n("This output:")
-            Layout.minimumWidth: root.comboboxWidth
-            visible: element.stereoPairPartnerIndex > 0
-            model: element.stereoPairMode === KScreen.Output.StereoPairMode.Ized3d
-                ? [ { label: i18n("Back input"), value: KScreen.Output.StereoPairRole.Back }, { label: i18n("Front input"), value: KScreen.Output.StereoPairRole.Front } ]
-                : [ { label: i18n("Left eye"), value: KScreen.Output.StereoPairRole.Left }, { label: i18n("Right eye"), value: KScreen.Output.StereoPairRole.Right } ]
-            textRole: "label"
-            valueRole: "value"
-            onActivated: element.stereoPairRole = currentValue
-            Component.onCompleted: currentIndex = indexOfValue(element.stereoPairRole)
-        }
+                QQC2.ComboBox {
+                    Kirigami.FormData.label: i18n("This output:")
+                    Layout.minimumWidth: root.comboboxWidth
+                    visible: element.stereoPairPartnerIndex > 0
+                    model: element.stereoPairMode === KScreen.Output.StereoPairMode.Ized3d
+                        ? [ { label: i18n("Back input"), value: KScreen.Output.StereoPairRole.Back }, { label: i18n("Front input"), value: KScreen.Output.StereoPairRole.Front } ]
+                        : [ { label: i18n("Left eye"), value: KScreen.Output.StereoPairRole.Left }, { label: i18n("Right eye"), value: KScreen.Output.StereoPairRole.Right } ]
+                    textRole: "label"
+                    valueRole: "value"
+                    onActivated: element.stereoPairRole = currentValue
+                    Component.onCompleted: currentIndex = indexOfValue(element.stereoPairRole)
+                }
 
-        QQC2.ComboBox {
-            Kirigami.FormData.label: i18n("Reflection:")
-            Layout.minimumWidth: root.comboboxWidth
-            visible: element.stereoPairPartnerIndex > 0 && element.stereoPairMode === KScreen.Output.StereoPairMode.MirrorRig
-            model: [
-                { label: i18n("None"), value: KScreen.Output.StereoPairReflection.None },
-                { label: i18n("Horizontal"), value: KScreen.Output.StereoPairReflection.Horizontal },
-                { label: i18n("Vertical"), value: KScreen.Output.StereoPairReflection.Vertical },
-            ]
-            textRole: "label"
-            valueRole: "value"
-            onActivated: element.stereoPairReflection = currentValue
-            Component.onCompleted: currentIndex = indexOfValue(element.stereoPairReflection)
-        }
-    }
+                QQC2.ComboBox {
+                    Kirigami.FormData.label: i18n("Reflection:")
+                    Layout.minimumWidth: root.comboboxWidth
+                    visible: element.stereoPairPartnerIndex > 0 && element.stereoPairMode === KScreen.Output.StereoPairMode.MirrorRig
+                    model: [
+                        { label: i18n("None"), value: KScreen.Output.StereoPairReflection.None },
+                        { label: i18n("Horizontal"), value: KScreen.Output.StereoPairReflection.Horizontal },
+                        { label: i18n("Vertical"), value: KScreen.Output.StereoPairReflection.Vertical },
+                    ]
+                    textRole: "label"
+                    valueRole: "value"
+                    onActivated: element.stereoPairReflection = currentValue
+                    Component.onCompleted: currentIndex = indexOfValue(element.stereoPairReflection)
+                }
+            }
 
-    ColumnLayout {
-        visible: element.capabilities & KScreen.Output.Capability.VirtualStereo
-        QQC2.CheckBox {
-            text: i18n("Other stereo formats")
-            checked: element.otherStereoFormats
-            onToggled: element.otherStereoFormats = checked
-        }
-        QQC2.Label {
-            Layout.maximumWidth: Kirigami.Units.gridUnit * 32
-            wrapMode: Text.WordWrap
-            text: i18n("Lists half side by side and top and bottom for displays switched to 3D by hand, plus native-resolution rows, columns and checkerboard for other stereo screens, after applying.")
+            ColumnLayout {
+                visible: element.capabilities & KScreen.Output.Capability.VirtualStereo
+                QQC2.CheckBox {
+                    text: i18n("Other stereo formats")
+                    checked: element.otherStereoFormats
+                    onToggled: element.otherStereoFormats = checked
+                }
+                QQC2.Label {
+                    Layout.maximumWidth: Kirigami.Units.gridUnit * 32
+                    wrapMode: Text.WordWrap
+                    text: i18n("Lists half side by side and top and bottom for displays switched to 3D by hand, plus native-resolution rows, columns and checkerboard for other stereo screens, after applying.")
+                }
+            }
         }
     }
 
