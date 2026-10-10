@@ -5,6 +5,8 @@
 */
 #pragma once
 
+#include "config-stereo.h"
+
 #include <kscreen/config.h>
 #include <kscreen/mode.h>
 #include <kscreen/output.h>
@@ -66,6 +68,7 @@ public:
         AutoBrightnessRole,
         HdrIccProfileRole,
         HdrColorProfileSourceRole,
+#if HAVE_KSCREEN_STEREO
         AnaglyphRole,
         OtherStereoFormatsRole,
         StereoPairPartnerModelRole,
@@ -73,6 +76,7 @@ public:
         StereoPairModeRole,
         StereoPairRoleRole,
         StereoPairReflectionRole,
+#endif
         AbmLevelRole,
     };
     Q_ENUM(OutputRoles)
@@ -171,21 +175,27 @@ private:
     QVariantList resolutionsStrings(const KScreen::OutputPtr &output) const;
     struct ResolutionEntry {
         QSize size;
+#if HAVE_KSCREEN_STEREO
         // Anaglyph is a colour conversion at this size, independent of refresh rate.
         // None groups the ordinary and display-specific stereo timings.
         KScreen::Mode::Stereo3D anaglyph = KScreen::Mode::Stereo3D::None;
+#endif
         bool operator==(const ResolutionEntry &) const = default;
     };
     QList<ResolutionEntry> resolutions(const KScreen::OutputPtr &output) const;
     // one entry of the refresh rate list: a rate, and the HDMI 3D structure of a 3D mode
     struct RefreshEntry {
         float rate;
+#if HAVE_KSCREEN_STEREO
         KScreen::Mode::Stereo3D stereo3D;
         bool virtualStereo = false;
+#endif
     };
     QList<RefreshEntry> refreshRates(const KScreen::OutputPtr &output) const;
+#if HAVE_KSCREEN_STEREO
     QVariantList stereoPairPartnerModel(const KScreen::OutputPtr &output) const;
     int stereoPairPartnerIndex(const KScreen::OutputPtr &output) const;
+#endif
 
     bool positionable(const Output &output) const;
 

@@ -278,6 +278,11 @@ bool KCMKScreen::perOutputScaling() const
     return m_configHandler->config()->supportedFeatures().testFlag(Config::Feature::PerOutputScaling);
 }
 
+bool KCMKScreen::stereoSupported() const
+{
+    return HAVE_KSCREEN_STEREO;
+}
+
 bool KCMKScreen::primaryOutputSupported() const
 {
     if (!m_configHandler || !m_configHandler->config()) {

@@ -178,12 +178,14 @@ bool ConfigHandler::checkSaveandTestCommon(bool isSaveCheck)
                     || (isSaveCheck && output->automaticBrightness() != config->automaticBrightness())
                     || output->hdrColorProfileSource() != config->hdrColorProfileSource()
                     || output->hdrIccProfilePath() != config->hdrIccProfilePath()
+#if HAVE_KSCREEN_STEREO
                     || output->anaglyph() != config->anaglyph()
                     || output->otherStereoFormats() != config->otherStereoFormats()
                     || output->stereoPairPartner() != config->stereoPairPartner()
                     || output->stereoPairMode() != config->stereoPairMode()
                     || output->stereoPairRole() != config->stereoPairRole()
                     || output->stereoPairReflection() != config->stereoPairReflection()
+#endif
                     || output->abmLevel() != config->abmLevel()) {
                         return true;
                     }

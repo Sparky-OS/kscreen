@@ -57,6 +57,24 @@ set_package_properties(KF6ImageFormats PROPERTIES
 )
 
 find_package(KF6Screen ${PROJECT_DEP_VERSION} REQUIRED)
+include(CheckCXXSourceCompiles)
+include(CMakePushCheckState)
+cmake_push_check_state()
+set(CMAKE_REQUIRED_LIBRARIES KF6::Screen)
+check_cxx_source_compiles("
+#include <KScreen/Mode>
+#include <KScreen/Output>
+int main()
+{
+    KScreen::Mode mode;
+    KScreen::Output output;
+    return mode.virtualStereo() || mode.stereo3D() == KScreen::Mode::Stereo3D::AnaglyphModern
+        || output.anaglyph() || output.stereoPairMode() != KScreen::Output::StereoPairMode::None;
+}
+" HAVE_KSCREEN_STEREO)
+cmake_pop_check_state()
+configure_file(config-stereo.h.cmake ${CMAKE_CURRENT_BINARY_DIR}/config-stereo.h)
+add_feature_info(Stereo HAVE_KSCREEN_STEREO "Stereo output settings from libkscreen")
 find_package(Plasma ${PROJECT_DEP_VERSION} REQUIRED)
 find_package(PlasmaQuick ${PROJECT_DEP_VERSION} REQUIRED)
 

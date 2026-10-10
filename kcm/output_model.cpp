@@ -85,6 +85,7 @@ QVariant OutputModel::data(const QModelIndex &index, int role) const
     case RefreshRatesRole: {
         QVariantList ret;
         const auto entries = refreshRates(output);
+#if HAVE_KSCREEN_STEREO
         // suggestions: movies in frame packing at 24 Hz; games only from 60 Hz (59.94 included),
         // the least a game needs without flicker and motion sickness: full resolution per eye
         // (side by side full, frame packing) first, else top and bottom among the half formats
@@ -98,6 +99,7 @@ QVariant OutputModel::data(const QModelIndex &index, int role) const
             return (entry.stereo3D == KScreen::Mode::Stereo3D::SideBySideFull || entry.stereo3D == KScreen::Mode::Stereo3D::FramePacking)
                 && isGameRate(entry.rate);
         });
+#endif
         for (const auto &entry : entries) {
             const float rate = entry.rate;
             // sometimes refresh rates are only a tiny bit different,
@@ -115,6 +117,7 @@ QVariant OutputModel::data(const QModelIndex &index, int role) const
                 }
             });
             const QString rateText = ki18n("%1 Hz").subs(rate, 0, 'f', showMore ? 3 : 2).toString();
+#if HAVE_KSCREEN_STEREO
             if (entry.virtualStereo && !isAnaglyph(entry.stereo3D)) {
                 ret << virtualStereoModeLabel(entry.stereo3D, rateText);
                 continue;
@@ -152,6 +155,9 @@ QVariant OutputModel::data(const QModelIndex &index, int role) const
                 ret << i18nc("@item:inlistbox refresh rate of an HDMI 3D mode; %1 is the rate", "%1 (3D side by side)", rateText);
                 break;
             }
+#else
+            ret << rateText;
+#endif
         }
         return ret;
     }
@@ -221,6 +227,7 @@ QVariant OutputModel::data(const QModelIndex &index, int role) const
         return output->hdrIccProfilePath();
     case HdrColorProfileSourceRole:
         return uint32_t(output->hdrColorProfileSource());
+#if HAVE_KSCREEN_STEREO
     case AnaglyphRole:
         return output->anaglyph();
     case OtherStereoFormatsRole:
@@ -235,6 +242,7 @@ QVariant OutputModel::data(const QModelIndex &index, int role) const
         return static_cast<uint32_t>(output->stereoPairRole());
     case StereoPairReflectionRole:
         return static_cast<uint32_t>(output->stereoPairReflection());
+#endif
     case AbmLevelRole:
         return output->abmLevel();
     }
@@ -439,6 +447,7 @@ bool OutputModel::setData(const QModelIndex &index, const QVariant &value, int r
         output.ptr->setHdrColorProfileSource(KScreen::Output::ColorProfileSource(value.toUInt()));
         Q_EMIT dataChanged(index, index, {role});
         return true;
+#if HAVE_KSCREEN_STEREO
     case AnaglyphRole:
         output.ptr->setAnaglyph(value.toBool());
         Q_EMIT dataChanged(index, index, {role});
@@ -478,6 +487,7 @@ bool OutputModel::setData(const QModelIndex &index, const QVariant &value, int r
         output.ptr->setStereoPairReflection(static_cast<KScreen::Output::StereoPairReflection>(value.toUInt()));
         Q_EMIT dataChanged(index, index, {role});
         return true;
+#endif
     case AbmLevelRole:
         output.ptr->setAbmLevel(value.toUInt());
         Q_EMIT dataChanged(index, index, {role});
@@ -533,6 +543,7 @@ QHash<int, QByteArray> OutputModel::roleNames() const
     roles[AutoBrightnessRole] = "automaticBrightness";
     roles[HdrIccProfileRole] = "hdrIccProfilePath";
     roles[HdrColorProfileSourceRole] = "hdrColorProfileSource";
+#if HAVE_KSCREEN_STEREO
     roles[AnaglyphRole] = "anaglyph";
     roles[OtherStereoFormatsRole] = "otherStereoFormats";
     roles[StereoPairPartnerModelRole] = "stereoPairPartnerModel";
@@ -540,6 +551,7 @@ QHash<int, QByteArray> OutputModel::roleNames() const
     roles[StereoPairModeRole] = "stereoPairMode";
     roles[StereoPairRoleRole] = "stereoPairRole";
     roles[StereoPairReflectionRole] = "stereoPairReflection";
+#endif
     roles[AbmLevelRole] = "abmLevel";
     return roles;
 }
@@ -716,9 +728,10 @@ bool OutputModel::setResolution(int outputIndex, int resIndex)
     const QSize size = entry.size;
 
     const float oldRate = output.ptr->currentMode() ? output.ptr->currentMode()->refreshRate() : -1;
+    const auto modes = output.ptr->modes();
+#if HAVE_KSCREEN_STEREO
     const bool oldVirtualStereo = output.ptr->currentMode() && output.ptr->currentMode()->virtualStereo();
     const auto oldStereo3D = output.ptr->currentMode() ? output.ptr->currentMode()->stereo3D() : KScreen::Mode::Stereo3D::None;
-    const auto modes = output.ptr->modes();
     const auto targetLayout = isAnaglyph(entry.anaglyph) ? entry.anaglyph
         : isAnaglyph(oldStereo3D) ? KScreen::Mode::Stereo3D::None : oldStereo3D;
 
@@ -747,6 +760,12 @@ bool OutputModel::setResolution(int outputIndex, int resIndex)
     }
 
     if (modeIt == modes.end() && !isAnaglyph(targetLayout)) {
+#else
+    auto modeIt = std::ranges::find_if(modes, [size, oldRate](const KScreen::ModePtr &mode) {
+        return mode->size() == size && refreshRateCompare(mode->refreshRate(), oldRate);
+    });
+    if (modeIt == modes.end()) {
+#endif
         // New resolution does not support previous refresh rate.
         // Get the highest one instead, in 2D.
         float bestRefreshRate = 0;
@@ -799,11 +818,19 @@ bool OutputModel::setRefreshRate(int outputIndex, int refIndex)
     auto modeIt = std::ranges::find_if(modes, [oldMode, entry](const KScreen::ModePtr &mode) {
         // TODO: we don't want to compare against old refresh rate if
         //       refresh rate selection is auto.
+#if HAVE_KSCREEN_STEREO
         return mode->size() == oldMode->size() && refreshRateCompare(mode->refreshRate(), entry.rate) && mode->stereo3D() == entry.stereo3D && mode->virtualStereo() == entry.virtualStereo;
+#else
+        return mode->size() == oldMode->size() && refreshRateCompare(mode->refreshRate(), entry.rate);
+#endif
     });
     Q_ASSERT(modeIt != modes.end());
 
+#if HAVE_KSCREEN_STEREO
     if (refreshRateCompare(oldMode->refreshRate(), (*modeIt)->refreshRate()) && oldMode->stereo3D() == (*modeIt)->stereo3D() && oldMode->virtualStereo() == (*modeIt)->virtualStereo()) {
+#else
+    if (refreshRateCompare(oldMode->refreshRate(), (*modeIt)->refreshRate())) {
+#endif
         // no change
         return false;
     }
@@ -846,12 +873,18 @@ int OutputModel::resolutionIndex(const KScreen::OutputPtr &output) const
     }
 
     const auto sizes = resolutions(output);
+#if HAVE_KSCREEN_STEREO
     const auto layout = output->currentMode() ? output->currentMode()->stereo3D() : KScreen::Mode::Stereo3D::None;
     const auto anaglyph = isAnaglyph(layout) ? layout : KScreen::Mode::Stereo3D::None;
 
     const auto it = std::ranges::find_if(sizes, [currentResolution, anaglyph](const ResolutionEntry &entry) {
         return entry.size == currentResolution && entry.anaglyph == anaglyph;
     });
+#else
+    const auto it = std::ranges::find_if(sizes, [currentResolution](const ResolutionEntry &entry) {
+        return entry.size == currentResolution;
+    });
+#endif
     if (it == sizes.end()) {
         return -1;
     }
@@ -876,12 +909,18 @@ int OutputModel::refreshRateIndex(const KScreen::OutputPtr &output) const
     }
     const auto entries = refreshRates(output);
     const float currentRate = output->currentMode()->refreshRate();
+#if HAVE_KSCREEN_STEREO
     const bool currentVirtualStereo = output->currentMode()->virtualStereo();
     const auto currentStereo3D = output->currentMode()->stereo3D();
 
     const auto it = std::ranges::find_if(entries, [currentRate, currentStereo3D, currentVirtualStereo](const RefreshEntry &entry) {
         return refreshRateCompare(entry.rate, currentRate) && entry.stereo3D == currentStereo3D && entry.virtualStereo == currentVirtualStereo;
     });
+#else
+    const auto it = std::ranges::find_if(entries, [currentRate](const RefreshEntry &entry) {
+        return refreshRateCompare(entry.rate, currentRate);
+    });
+#endif
     if (it == entries.end()) {
         return 0;
     }
@@ -930,11 +969,13 @@ QVariantList OutputModel::resolutionsStrings(const KScreen::OutputPtr &output) c
                                        size.width() / divisor,
                                        size.height() / divisor);
         }
+#if HAVE_KSCREEN_STEREO
         if (entry.anaglyph == KScreen::Mode::Stereo3D::AnaglyphModern) {
             text = i18nc("@item:inlistbox resolution with anaglyph colour conversion; %1 is the resolution", "%1 (anaglyph, modern screens)", text);
         } else if (entry.anaglyph == KScreen::Mode::Stereo3D::AnaglyphCrt) {
             text = i18nc("@item:inlistbox resolution with anaglyph colour conversion; %1 is the resolution", "%1 (anaglyph, CRT)", text);
         }
+#endif
         ret << text;
     }
     return ret;
@@ -946,8 +987,12 @@ QList<OutputModel::ResolutionEntry> OutputModel::resolutions(const KScreen::Outp
 
     const auto modes = output->modes();
     for (const auto &mode : modes) {
+#if HAVE_KSCREEN_STEREO
         const auto layout = mode->stereo3D();
         const ResolutionEntry entry{mode->size(), isAnaglyph(layout) ? layout : KScreen::Mode::Stereo3D::None};
+#else
+        const ResolutionEntry entry{mode->size()};
+#endif
         if (!hits.contains(entry)) {
             hits << entry;
         }
@@ -959,11 +1004,16 @@ QList<OutputModel::ResolutionEntry> OutputModel::resolutions(const KScreen::Outp
         if (a.size.height() != b.size.height()) {
             return a.size.height() > b.size.height();
         }
+#if HAVE_KSCREEN_STEREO
         return a.anaglyph < b.anaglyph;
+#else
+        return false;
+#endif
     });
     return hits;
 }
 
+#if HAVE_KSCREEN_STEREO
 QVariantList OutputModel::stereoPairPartnerModel(const KScreen::OutputPtr &output) const
 {
     QVariantList result;
@@ -988,6 +1038,8 @@ int OutputModel::stereoPairPartnerIndex(const KScreen::OutputPtr &output) const
     return 0;
 }
 
+#endif
+
 QList<OutputModel::RefreshEntry> OutputModel::refreshRates(const KScreen::OutputPtr &output) const
 {
     QList<RefreshEntry> hits;
@@ -1001,7 +1053,9 @@ QList<OutputModel::RefreshEntry> OutputModel::refreshRates(const KScreen::Output
     if (!baseSize.isValid()) {
         return hits;
     }
+#if HAVE_KSCREEN_STEREO
     const auto currentLayout = output->currentMode() ? output->currentMode()->stereo3D() : KScreen::Mode::Stereo3D::None;
+#endif
 
     const auto modes = output->modes();
     for (const auto &mode : modes) {
@@ -1009,6 +1063,7 @@ QList<OutputModel::RefreshEntry> OutputModel::refreshRates(const KScreen::Output
             continue;
         }
         const float rate = mode->refreshRate();
+#if HAVE_KSCREEN_STEREO
         const bool virtualStereo = mode->virtualStereo();
         const auto stereo3D = mode->stereo3D();
         // Anaglyph is chosen with the resolution. Refresh only changes its rate;
@@ -1022,7 +1077,15 @@ QList<OutputModel::RefreshEntry> OutputModel::refreshRates(const KScreen::Output
         if (!hasDuplicate) {
             hits << RefreshEntry{rate, stereo3D, virtualStereo};
         }
+#else
+        if (!std::ranges::any_of(hits, [rate](const RefreshEntry &entry) {
+                return refreshRateCompare(entry.rate, rate);
+            })) {
+            hits << RefreshEntry{rate};
+        }
+#endif
     }
+#if HAVE_KSCREEN_STEREO
     // the 2D rates first, as always, then the 3D modes: full resolution per eye (side by side
     // full, frame packing), then the half formats (top and bottom, side by side)
     const auto order = [](KScreen::Mode::Stereo3D stereo3D) {
@@ -1051,6 +1114,11 @@ QList<OutputModel::RefreshEntry> OutputModel::refreshRates(const KScreen::Output
         }
         return a.rate > b.rate;
     });
+#else
+    std::ranges::stable_sort(hits, [](const RefreshEntry &a, const RefreshEntry &b) {
+        return a.rate > b.rate;
+    });
+#endif
     return hits;
 }
 

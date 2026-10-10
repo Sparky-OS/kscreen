@@ -39,6 +39,7 @@ class KCMKScreen : public KQuickManagedConfigModule
     Q_PROPERTY(bool xwaylandClientsScale READ xwaylandClientsScale WRITE setXwaylandClientsScale NOTIFY xwaylandClientsScaleChanged)
     Q_PROPERTY(bool tearingAllowed READ allowTearing WRITE setAllowTearing NOTIFY tearingAllowedChanged)
     Q_PROPERTY(bool multipleScreensAvailable READ multipleScreensAvailable NOTIFY multipleScreensAvailableChanged)
+    Q_PROPERTY(bool stereoSupported READ stereoSupported CONSTANT)
 
 public:
     enum InvalidConfigReason {
@@ -82,6 +83,7 @@ public:
     bool tabletModeAvailable() const;
 
     bool multipleScreensAvailable() const;
+    bool stereoSupported() const;
 
     void doSave();
     Q_INVOKABLE void revertSettings();
