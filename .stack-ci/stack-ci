@@ -5,7 +5,7 @@
     stack-ci publish
 
 prepare resolves the members' commits on the remote (git ls-remote), computes their keys
-(kdecistack.key_of, with the job image's identity: a hash of its installed packages), and for every
+(kdecistack.key_of over the source id of the commit, so CI-only commits keep the key, with the job image's identity: a hash of its installed packages), and for every
 member that is needed gets its prefix: downloaded from the registry when a package of that key
 exists, else built from source with KDE's own run-ci-build.py through stack-run-ci-build.  The
 members are then composed into one folder (STACK_CI_OUT), the KDE_CI_STACK_PREFIX of the job.
@@ -75,9 +75,22 @@ def resolve(stack, image):
         if not out:
             sys.exit(f"STATUS: blocked - {url_of(m)} has no branch {m['ci-name']}")
         m["commit"], m["branch"] = out[0], m["ci-name"]
-        m["key"] = kdecistack.key_of(name, m["commit"], image, {d: members[d]["key"] for d in m.get("needs", [])})
+        m["source"] = remote_source_id(m)
+        m["key"] = kdecistack.key_of(name, m["source"], image, {d: members[d]["key"] for d in m.get("needs", [])})
         members[name] = m
     return members
+
+
+def remote_source_id(m):
+    """kdecistack.source_id of the commit on the remote: fetches its trees, no file contents."""
+    probe = os.path.join(WORK, "probe", m["name"])
+    shutil.rmtree(probe, ignore_errors=True)
+    os.makedirs(probe)
+    subprocess.check_call(["git", "init", "-q", "--bare"], cwd=probe)
+    subprocess.check_call(["git", "fetch", "-q", "--depth", "1", "--filter=blob:none", url_of(m), m["commit"]], cwd=probe)
+    sid = kdecistack.source_id(probe, m["commit"])
+    shutil.rmtree(probe, ignore_errors=True)
+    return sid
 
 
 def mdir(m):

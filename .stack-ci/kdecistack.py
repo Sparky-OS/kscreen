@@ -6,7 +6,8 @@ laid over them, and its staged install is kept under
 
     $WORK/stack/NAME/members/MEMBER-KEY/prefix
 
-KEY is a hash of the member's commit, the keys of the members it needs and the id of the
+KEY is a hash of the member's source (its top-level tree without the CI-only paths, see
+source_id), the keys of the members it needs and the id of the
 job image, so a member is rebuilt when its commit, a member it needs or the image moves,
 and only then.  KDE's own packages are not part of the key: the registry changes under us
 (see KDE-CI.md).
@@ -50,7 +51,23 @@ def git(repo, *args):
     return subprocess.check_output(["git", "-C", repo, *args], text=True).strip()
 
 
+# What a fork-only "CI only, not for upstream" commit touches.  The member is built by KDE's
+# run-ci-build.py, which reads neither, so a change to them must not move the key.
+CI_ONLY = (".stack-ci", ".gitlab-ci.yml")
+
+
+def source_id(repo, rev):
+    """Hash of the top-level tree of rev without the CI-only paths."""
+    h = hashlib.sha1()
+    for line in git(repo, "ls-tree", rev).splitlines():
+        meta, name = line.split("\t", 1)
+        if name not in CI_ONLY:
+            h.update(f"{meta}\t{name}\n".encode())
+    return h.hexdigest()
+
+
 def key_of(name, commit, image_id, dep_keys):
+    """commit is the member's source_id."""
     h = hashlib.sha1()
     h.update(f"{name}\n{commit}\n{image_id}\n".encode())
     for dep in sorted(dep_keys):
@@ -67,7 +84,8 @@ def resolve(stack, image_id):
         m["package"] = name
         m["path"] = m["repo"] if os.path.isabs(m["repo"]) else os.path.join(stack["root"], m["repo"])
         m["commit"] = git(m["path"], "rev-parse", m["branch"] + "^{commit}")
-        m["key"] = key_of(name, m["commit"], image_id, {d: out[d]["key"] for d in m.get("needs", [])})
+        m["source"] = source_id(m["path"], m["commit"])
+        m["key"] = key_of(name, m["source"], image_id, {d: out[d]["key"] for d in m.get("needs", [])})
         out[name] = m
     return out
 

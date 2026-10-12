@@ -24,3 +24,11 @@ members:
     repo: kimageformats
     branch: stereo3d
     ci-name: stereo3d
+  mpvqt:
+    repo: mpvqt
+    branch: stereo3d
+    ci-name: stereo3d
+  kfilemetadata:
+    repo: kfilemetadata
+    branch: stereo3d
+    ci-name: stereo3d
