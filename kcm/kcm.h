@@ -40,6 +40,7 @@ class KCMKScreen : public KQuickManagedConfigModule
     Q_PROPERTY(bool tearingAllowed READ allowTearing WRITE setAllowTearing NOTIFY tearingAllowedChanged)
     Q_PROPERTY(bool multipleScreensAvailable READ multipleScreensAvailable NOTIFY multipleScreensAvailableChanged)
     Q_PROPERTY(bool stereoSupported READ stereoSupported CONSTANT)
+    Q_PROPERTY(bool stereoDepthSupported READ stereoDepthSupported CONSTANT)
 
 public:
     enum InvalidConfigReason {
@@ -84,6 +85,7 @@ public:
 
     bool multipleScreensAvailable() const;
     bool stereoSupported() const;
+    bool stereoDepthSupported() const;
 
     void doSave();
     Q_INVOKABLE void revertSettings();

@@ -186,6 +186,11 @@ bool ConfigHandler::checkSaveandTestCommon(bool isSaveCheck)
                     || output->stereoPairRole() != config->stereoPairRole()
                     || output->stereoPairReflection() != config->stereoPairReflection()
 #endif
+#if HAVE_KSCREEN_STEREO_DEPTH
+                    || output->sideBySideFullTiming() != config->sideBySideFullTiming()
+                    || output->stereoDepthSource() != config->stereoDepthSource()
+                    || output->stereoViewingDistance() != config->stereoViewingDistance()
+#endif
                     || output->abmLevel() != config->abmLevel()) {
                         return true;
                     }

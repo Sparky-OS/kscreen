@@ -77,6 +77,12 @@ public:
         StereoPairRoleRole,
         StereoPairReflectionRole,
 #endif
+#if HAVE_KSCREEN_STEREO_DEPTH
+        SideBySideFullModesRole,
+        SideBySideFullTimingRole,
+        StereoDepthSourceRole,
+        StereoViewingDistanceRole,
+#endif
         AbmLevelRole,
     };
     Q_ENUM(OutputRoles)

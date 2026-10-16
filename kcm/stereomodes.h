@@ -44,3 +44,35 @@ inline QString virtualStereoModeLabel(KScreen::Mode::Stereo3D layout, const QStr
     }
 }
 #endif
+
+#if HAVE_KSCREEN_STEREO_DEPTH
+inline bool isPictureAndDepth(KScreen::Mode::Stereo3D layout)
+{
+    return layout == KScreen::Mode::Stereo3D::LDepth || layout == KScreen::Mode::Stereo3D::LDepthGraphics;
+}
+
+/**
+ * The label of an HDMI 1.4a 3D structure beyond the four first listed (Appendix H): field and
+ * line alternative, and the picture and depth structures, from which the display makes the
+ * views. Line alternative sends each eye at full resolution, so it is suggested for games
+ * at game rates, as side by side (full) and frame packing are.
+ */
+inline QString depthStructureLabel(KScreen::Mode::Stereo3D layout, const QString &rateText, bool gameRate)
+{
+    switch (layout) {
+    case KScreen::Mode::Stereo3D::FieldAlternative:
+        return i18nc("@item:inlistbox refresh rate of an HDMI 3D mode; %1 is the rate", "%1 (3D field alternative)", rateText);
+    case KScreen::Mode::Stereo3D::LineAlternative:
+        if (gameRate) {
+            return i18nc("@item:inlistbox refresh rate of an HDMI 3D mode; %1 is the rate", "%1 (3D line alternative, suggested for games)", rateText);
+        }
+        return i18nc("@item:inlistbox refresh rate of an HDMI 3D mode; %1 is the rate", "%1 (3D line alternative)", rateText);
+    case KScreen::Mode::Stereo3D::LDepth:
+        return i18nc("@item:inlistbox refresh rate of an HDMI 3D mode; %1 is the rate", "%1 (3D picture and depth)", rateText);
+    case KScreen::Mode::Stereo3D::LDepthGraphics:
+        return i18nc("@item:inlistbox refresh rate of an HDMI 3D mode; %1 is the rate", "%1 (3D picture, depth and graphics)", rateText);
+    default:
+        return rateText;
+    }
+}
+#endif

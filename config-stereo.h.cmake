@@ -1,1 +1,2 @@
 #cmakedefine01 HAVE_KSCREEN_STEREO
+#cmakedefine01 HAVE_KSCREEN_STEREO_DEPTH

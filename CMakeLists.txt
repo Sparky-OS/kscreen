@@ -72,9 +72,22 @@ int main()
         || output.anaglyph() || output.stereoPairMode() != KScreen::Output::StereoPairMode::None;
 }
 " HAVE_KSCREEN_STEREO)
+check_cxx_source_compiles("
+#include <KScreen/Mode>
+#include <KScreen/Output>
+int main()
+{
+    KScreen::Mode mode;
+    KScreen::Output output;
+    return mode.stereo3D() == KScreen::Mode::Stereo3D::LDepthGraphics
+        || output.sideBySideFullTiming() == KScreen::Output::SideBySideFullTiming::BlankingKept
+        || output.stereoDepthSource() == KScreen::Output::StereoDepthSource::Flat || output.stereoViewingDistance();
+}
+" HAVE_KSCREEN_STEREO_DEPTH)
 cmake_pop_check_state()
 configure_file(config-stereo.h.cmake ${CMAKE_CURRENT_BINARY_DIR}/config-stereo.h)
 add_feature_info(Stereo HAVE_KSCREEN_STEREO "Stereo output settings from libkscreen")
+add_feature_info(StereoDepth HAVE_KSCREEN_STEREO_DEPTH "Every HDMI 1.4a 3D structure, the side by side (full) timing and the stereo depth settings from libkscreen")
 find_package(Plasma ${PROJECT_DEP_VERSION} REQUIRED)
 find_package(PlasmaQuick ${PROJECT_DEP_VERSION} REQUIRED)
 

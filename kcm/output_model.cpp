@@ -96,7 +96,11 @@ QVariant OutputModel::data(const QModelIndex &index, int role) const
             return rate > 59.9f;
         };
         const bool fullResolutionGames = std::ranges::any_of(entries, [&isGameRate](const RefreshEntry &entry) {
-            return (entry.stereo3D == KScreen::Mode::Stereo3D::SideBySideFull || entry.stereo3D == KScreen::Mode::Stereo3D::FramePacking)
+            return (entry.stereo3D == KScreen::Mode::Stereo3D::SideBySideFull || entry.stereo3D == KScreen::Mode::Stereo3D::FramePacking
+#if HAVE_KSCREEN_STEREO_DEPTH
+                    || entry.stereo3D == KScreen::Mode::Stereo3D::LineAlternative
+#endif
+                    )
                 && isGameRate(entry.rate);
         });
 #endif
@@ -154,6 +158,14 @@ QVariant OutputModel::data(const QModelIndex &index, int role) const
             case KScreen::Mode::Stereo3D::SideBySideHalf:
                 ret << i18nc("@item:inlistbox refresh rate of an HDMI 3D mode; %1 is the rate", "%1 (3D side by side)", rateText);
                 break;
+#if HAVE_KSCREEN_STEREO_DEPTH
+            case KScreen::Mode::Stereo3D::FieldAlternative:
+            case KScreen::Mode::Stereo3D::LineAlternative:
+            case KScreen::Mode::Stereo3D::LDepth:
+            case KScreen::Mode::Stereo3D::LDepthGraphics:
+                ret << depthStructureLabel(entry.stereo3D, rateText, isGameRate(rate));
+                break;
+#endif
             }
 #else
             ret << rateText;
@@ -242,6 +254,20 @@ QVariant OutputModel::data(const QModelIndex &index, int role) const
         return static_cast<uint32_t>(output->stereoPairRole());
     case StereoPairReflectionRole:
         return static_cast<uint32_t>(output->stereoPairReflection());
+#endif
+#if HAVE_KSCREEN_STEREO_DEPTH
+    case SideBySideFullModesRole: {
+        const auto modes = output->modes();
+        return std::ranges::any_of(modes, [](const KScreen::ModePtr &mode) {
+            return mode->stereo3D() == KScreen::Mode::Stereo3D::SideBySideFull && !mode->virtualStereo();
+        });
+    }
+    case SideBySideFullTimingRole:
+        return static_cast<uint32_t>(output->sideBySideFullTiming());
+    case StereoDepthSourceRole:
+        return static_cast<uint32_t>(output->stereoDepthSource());
+    case StereoViewingDistanceRole:
+        return output->stereoViewingDistance();
 #endif
     case AbmLevelRole:
         return output->abmLevel();
@@ -447,6 +473,20 @@ bool OutputModel::setData(const QModelIndex &index, const QVariant &value, int r
         output.ptr->setHdrColorProfileSource(KScreen::Output::ColorProfileSource(value.toUInt()));
         Q_EMIT dataChanged(index, index, {role});
         return true;
+#if HAVE_KSCREEN_STEREO_DEPTH
+    case SideBySideFullTimingRole:
+        output.ptr->setSideBySideFullTiming(static_cast<KScreen::Output::SideBySideFullTiming>(value.toUInt()));
+        Q_EMIT dataChanged(index, index, {role});
+        return true;
+    case StereoDepthSourceRole:
+        output.ptr->setStereoDepthSource(static_cast<KScreen::Output::StereoDepthSource>(value.toUInt()));
+        Q_EMIT dataChanged(index, index, {role});
+        return true;
+    case StereoViewingDistanceRole:
+        output.ptr->setStereoViewingDistance(value.toUInt());
+        Q_EMIT dataChanged(index, index, {role});
+        return true;
+#endif
 #if HAVE_KSCREEN_STEREO
     case AnaglyphRole:
         output.ptr->setAnaglyph(value.toBool());
@@ -551,6 +591,12 @@ QHash<int, QByteArray> OutputModel::roleNames() const
     roles[StereoPairModeRole] = "stereoPairMode";
     roles[StereoPairRoleRole] = "stereoPairRole";
     roles[StereoPairReflectionRole] = "stereoPairReflection";
+#endif
+#if HAVE_KSCREEN_STEREO_DEPTH
+    roles[SideBySideFullModesRole] = "sideBySideFullModes";
+    roles[SideBySideFullTimingRole] = "sideBySideFullTiming";
+    roles[StereoDepthSourceRole] = "stereoDepthSource";
+    roles[StereoViewingDistanceRole] = "stereoViewingDistance";
 #endif
     roles[AbmLevelRole] = "abmLevel";
     return roles;
@@ -1096,14 +1142,27 @@ QList<OutputModel::RefreshEntry> OutputModel::refreshRates(const KScreen::Output
             return 1;
         case KScreen::Mode::Stereo3D::FramePacking:
             return 2;
-        case KScreen::Mode::Stereo3D::TopAndBottom:
+#if HAVE_KSCREEN_STEREO_DEPTH
+        case KScreen::Mode::Stereo3D::LineAlternative:
             return 3;
-        case KScreen::Mode::Stereo3D::SideBySideHalf:
+#endif
+        case KScreen::Mode::Stereo3D::TopAndBottom:
             return 4;
+        case KScreen::Mode::Stereo3D::SideBySideHalf:
+            return 5;
+#if HAVE_KSCREEN_STEREO_DEPTH
+        // then field alternative and the picture and depth structures
+        case KScreen::Mode::Stereo3D::FieldAlternative:
+            return 6;
+        case KScreen::Mode::Stereo3D::LDepth:
+            return 7;
+        case KScreen::Mode::Stereo3D::LDepthGraphics:
+            return 8;
+#endif
         default:
-            return 5 + int(stereo3D);
+            return 9 + int(stereo3D);
         }
-        return 5;
+        return 9;
     };
     std::ranges::stable_sort(hits, [&order](const RefreshEntry &a, const RefreshEntry &b) {
         if (a.virtualStereo != b.virtualStereo) {

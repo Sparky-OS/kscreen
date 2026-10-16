@@ -126,6 +126,76 @@ Kirigami.FormLayout {
         }
     }
 
+    // HDMI 3D modes of the display itself: how side by side (full) is timed, and what the depth
+    // picture of the picture and depth structures shows
+    Loader {
+        active: kcm.stereoDepthSupported
+            && (((element.capabilities & KScreen.Output.Capability.SideBySideFullTiming) && element.sideBySideFullModes)
+                || (element.capabilities & KScreen.Output.Capability.StereoDepth))
+        visible: active
+        sourceComponent: ColumnLayout {
+            ColumnLayout {
+                visible: (element.capabilities & KScreen.Output.Capability.SideBySideFullTiming) && element.sideBySideFullModes
+                QQC2.Label {
+                    text: i18n("Side by side (full) timing:")
+                }
+                QQC2.ComboBox {
+                    Layout.minimumWidth: root.comboboxWidth
+                    model: [
+                        { label: i18n("Whole line doubled (HDMI specification)"), value: KScreen.Output.SideBySideFullTiming.WholeLineDoubled },
+                        { label: i18n("Blanking kept (NVIDIA's timing)"), value: KScreen.Output.SideBySideFullTiming.BlankingKept },
+                    ]
+                    textRole: "label"
+                    valueRole: "value"
+                    onActivated: element.sideBySideFullTiming = currentValue
+                    Component.onCompleted: currentIndex = indexOfValue(element.sideBySideFullTiming)
+                }
+                QQC2.Label {
+                    Layout.maximumWidth: Kirigami.Units.gridUnit * 32
+                    wrapMode: Text.WordWrap
+                    text: i18n("Both send the same picture. Choose blanking kept only if the display refuses its side by side (full) modes.")
+                }
+            }
+
+            ColumnLayout {
+                visible: element.capabilities & KScreen.Output.Capability.StereoDepth
+                QQC2.Label {
+                    text: i18n("Depth for picture and depth 3D modes:")
+                }
+                QQC2.ComboBox {
+                    Layout.minimumWidth: root.comboboxWidth
+                    model: [
+                        { label: i18n("Flat"), value: KScreen.Output.StereoDepthSource.Flat },
+                        { label: i18n("Desktop"), value: KScreen.Output.StereoDepthSource.Desktop },
+                        { label: i18n("Desktop and 3D content (estimated)"), value: KScreen.Output.StereoDepthSource.DesktopAndContent },
+                    ]
+                    textRole: "label"
+                    valueRole: "value"
+                    onActivated: element.stereoDepthSource = currentValue
+                    Component.onCompleted: currentIndex = indexOfValue(element.stereoDepthSource)
+                }
+                QQC2.Label {
+                    Layout.maximumWidth: Kirigami.Units.gridUnit * 32
+                    wrapMode: Text.WordWrap
+                    text: i18n("The display makes the 3D views from the picture and its depth. Flat puts everything at the screen; Desktop gives windows, menus and the pointer their depth; the estimate also gives depth to 3D videos and games.")
+                }
+                QQC2.Label {
+                    text: i18n("Viewing distance:")
+                }
+                QQC2.SpinBox {
+                    from: 0
+                    to: 2000
+                    stepSize: 10
+                    editable: true
+                    textFromValue: (value, locale) => value === 0 ? i18n("Automatic") : i18nc("@item:valuesuffix a distance in centimetres", "%1 cm", value)
+                    valueFromText: (text, locale) => text === i18n("Automatic") ? 0 : parseInt(text)
+                    onValueModified: element.stereoViewingDistance = value
+                    Component.onCompleted: value = element.stereoViewingDistance
+                }
+            }
+        }
+    }
+
     RowLayout {
         visible: kcm.primaryOutputSupported && root.enabledOutputs.count >= 2
 
