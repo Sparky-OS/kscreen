@@ -23,6 +23,7 @@ private Q_SLOTS:
             {Layout::CheckerboardRightFirst, QStringLiteral("60 Hz (3D checkerboard, right eye first)")},
             {Layout::SequentialLeftFirst, QStringLiteral("60 Hz (frame sequential, left eye first)")},
             {Layout::SequentialRightFirst, QStringLiteral("60 Hz (frame sequential, right eye first)")},
+            {Layout::SideBySideFull, QStringLiteral("60 Hz (3D side by side full, for USB-C 3D glasses)")},
         };
         for (const auto &[layout, label] : expected) {
             QCOMPARE(virtualStereoModeLabel(layout, QStringLiteral("60 Hz")), label);
