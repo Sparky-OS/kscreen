@@ -20,6 +20,13 @@ if(HAVE_KSCREEN_STEREO)
         TEST_NAME anaglyphselection
         LINK_LIBRARIES Qt6::Test Qt6::Gui Qt6::DBus KF6::Screen KF6::I18n KF6::ConfigCore KF6::CoreAddons kscreen_common)
     target_include_directories(anaglyphselection PRIVATE ${CMAKE_BINARY_DIR}/kcm)
+
+    ecm_add_test(swapeyes.cpp
+        ../kcm/output_model.cpp ../kcm/config_handler.cpp
+        ${CMAKE_BINARY_DIR}/kcm/kcm_screen_debug.cpp
+        TEST_NAME swapeyes
+        LINK_LIBRARIES Qt6::Test Qt6::Gui Qt6::DBus KF6::Screen KF6::I18n KF6::ConfigCore KF6::CoreAddons kscreen_common)
+    target_include_directories(swapeyes PRIVATE ${CMAKE_BINARY_DIR}/kcm)
 endif()
 
 if(HAVE_KSCREEN_STEREO_DEPTH)
