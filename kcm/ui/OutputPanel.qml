@@ -100,8 +100,8 @@ Kirigami.FormLayout {
                     visible: element.stereoPairPartnerIndex > 0 && element.stereoPairMode === KScreen.Output.StereoPairMode.MirrorRig
                     model: [
                         { label: i18n("None"), value: KScreen.Output.StereoPairReflection.None },
-                        { label: i18n("Horizontal"), value: KScreen.Output.StereoPairReflection.Horizontal },
-                        { label: i18n("Vertical"), value: KScreen.Output.StereoPairReflection.Vertical },
+                        { label: i18n("Flip left to right (side mirror)"), value: KScreen.Output.StereoPairReflection.Horizontal },
+                        { label: i18n("Flip top to bottom (beam splitter above)"), value: KScreen.Output.StereoPairReflection.Vertical },
                     ]
                     textRole: "label"
                     valueRole: "value"
