@@ -13,6 +13,7 @@ endif()
 
 if(HAVE_KSCREEN_STEREO)
     ecm_add_tests(stereomodes.cpp LINK_LIBRARIES Qt6::Test KF6::I18n KF6::Screen)
+    ecm_add_test(pairlabels.cpp TEST_NAME pairlabels LINK_LIBRARIES Qt6::Test)
 
     ecm_add_test(anaglyphselection.cpp
         ../kcm/output_model.cpp ../kcm/config_handler.cpp
