@@ -194,6 +194,9 @@ bool ConfigHandler::checkSaveandTestCommon(bool isSaveCheck)
 #if HAVE_KSCREEN_STEREO_GLASSES
                     || output->stereoGlasses() != config->stereoGlasses()
 #endif
+#if HAVE_KSCREEN_STEREO_SWAP_EYES
+                    || output->stereoSwapEyes() != config->stereoSwapEyes()
+#endif
                     || output->abmLevel() != config->abmLevel()) {
                         return true;
                     }

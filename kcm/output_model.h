@@ -86,6 +86,12 @@ public:
 #if HAVE_KSCREEN_STEREO_GLASSES
         StereoGlassesRole,
 #endif
+#if HAVE_KSCREEN_STEREO_SWAP_EYES
+        /** The output exchanges its eyes in every 3D mode. */
+        StereoSwapEyesRole,
+        /** The output lists a 3D mode (an HDMI 3D mode or a virtual twin), so its eye order has a meaning. */
+        StereoModesRole,
+#endif
         AbmLevelRole,
     };
     Q_ENUM(OutputRoles)

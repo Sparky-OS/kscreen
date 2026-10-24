@@ -293,6 +293,11 @@ bool KCMKScreen::stereoGlassesSupported() const
     return HAVE_KSCREEN_STEREO_GLASSES;
 }
 
+bool KCMKScreen::stereoSwapEyesSupported() const
+{
+    return HAVE_KSCREEN_STEREO_SWAP_EYES;
+}
+
 bool KCMKScreen::primaryOutputSupported() const
 {
     if (!m_configHandler || !m_configHandler->config()) {

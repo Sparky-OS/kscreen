@@ -144,6 +144,24 @@ Kirigami.FormLayout {
         }
     }
 
+    // The output's eye order, the one definitive swap: offered where the output lists a 3D mode, never on a 2D one
+    Loader {
+        active: kcm.stereoSwapEyesSupported && (element.capabilities & KScreen.Output.Capability.StereoSwapEyes) && element.stereoModes
+        visible: active
+        sourceComponent: ColumnLayout {
+            QQC2.CheckBox {
+                text: i18n("Swap left and right eyes")
+                checked: element.stereoSwapEyes
+                onToggled: element.stereoSwapEyes = checked
+            }
+            QQC2.Label {
+                Layout.maximumWidth: Kirigami.Units.gridUnit * 32
+                wrapMode: Text.WordWrap
+                text: i18n("For a display or glasses that show the eyes reversed: every 3D mode of this output sends the right eye where the left one goes and the left eye where the right one goes. A wrongly marked file is corrected in the program's own 3D menu instead.")
+            }
+        }
+    }
+
     // HDMI 3D modes of the display itself: how side by side (full) is timed, and what the depth
     // picture of the picture and depth structures shows
     Loader {

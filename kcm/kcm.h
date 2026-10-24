@@ -42,6 +42,7 @@ class KCMKScreen : public KQuickManagedConfigModule
     Q_PROPERTY(bool stereoSupported READ stereoSupported CONSTANT)
     Q_PROPERTY(bool stereoDepthSupported READ stereoDepthSupported CONSTANT)
     Q_PROPERTY(bool stereoGlassesSupported READ stereoGlassesSupported CONSTANT)
+    Q_PROPERTY(bool stereoSwapEyesSupported READ stereoSwapEyesSupported CONSTANT)
 
 public:
     enum InvalidConfigReason {
@@ -88,6 +89,7 @@ public:
     bool stereoSupported() const;
     bool stereoDepthSupported() const;
     bool stereoGlassesSupported() const;
+    bool stereoSwapEyesSupported() const;
 
     void doSave();
     Q_INVOKABLE void revertSettings();

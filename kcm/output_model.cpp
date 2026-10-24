@@ -273,6 +273,16 @@ QVariant OutputModel::data(const QModelIndex &index, int role) const
     case StereoGlassesRole:
         return output->stereoGlasses();
 #endif
+#if HAVE_KSCREEN_STEREO_SWAP_EYES
+    case StereoSwapEyesRole:
+        return output->stereoSwapEyes();
+    case StereoModesRole: {
+        const auto modes = output->modes();
+        return std::ranges::any_of(modes, [](const KScreen::ModePtr &mode) {
+            return mode->stereo3D() != KScreen::Mode::Stereo3D::None;
+        });
+    }
+#endif
     case AbmLevelRole:
         return output->abmLevel();
     }
@@ -497,6 +507,12 @@ bool OutputModel::setData(const QModelIndex &index, const QVariant &value, int r
         Q_EMIT dataChanged(index, index, {role});
         return true;
 #endif
+#if HAVE_KSCREEN_STEREO_SWAP_EYES
+    case StereoSwapEyesRole:
+        output.ptr->setStereoSwapEyes(value.toBool());
+        Q_EMIT dataChanged(index, index, {role});
+        return true;
+#endif
 #if HAVE_KSCREEN_STEREO
     case AnaglyphRole:
         output.ptr->setAnaglyph(value.toBool());
@@ -611,6 +627,10 @@ QHash<int, QByteArray> OutputModel::roleNames() const
 #if HAVE_KSCREEN_STEREO_GLASSES
     roles[StereoGlassesRole] = "stereoGlasses";
 #endif
+#if HAVE_KSCREEN_STEREO_SWAP_EYES
+    roles[StereoSwapEyesRole] = "stereoSwapEyes";
+    roles[StereoModesRole] = "stereoModes";
+#endif
     roles[AbmLevelRole] = "abmLevel";
     return roles;
 }
@@ -643,7 +663,17 @@ void OutputModel::add(const KScreen::OutputPtr &output)
     endInsertRows();
 
     connect(output.data(), &KScreen::Output::modesChanged, this, [this, output]() {
-        rolesChanged(output->id(), {ResolutionsRole, ResolutionIndexRole, ResolutionRole, SizeRole, RefreshRatesRole, RefreshRateIndexRole});
+        rolesChanged(output->id(),
+                     {ResolutionsRole,
+                      ResolutionIndexRole,
+                      ResolutionRole,
+                      SizeRole,
+                      RefreshRatesRole,
+                      RefreshRateIndexRole,
+#if HAVE_KSCREEN_STEREO_SWAP_EYES
+                      StereoModesRole,
+#endif
+                     });
         Q_EMIT sizeChanged();
     });
 
