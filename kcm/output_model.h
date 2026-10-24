@@ -83,6 +83,9 @@ public:
         StereoDepthSourceRole,
         StereoViewingDistanceRole,
 #endif
+#if HAVE_KSCREEN_STEREO_GLASSES
+        StereoGlassesRole,
+#endif
         AbmLevelRole,
     };
     Q_ENUM(OutputRoles)

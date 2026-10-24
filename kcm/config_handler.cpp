@@ -191,6 +191,9 @@ bool ConfigHandler::checkSaveandTestCommon(bool isSaveCheck)
                     || output->stereoDepthSource() != config->stereoDepthSource()
                     || output->stereoViewingDistance() != config->stereoViewingDistance()
 #endif
+#if HAVE_KSCREEN_STEREO_GLASSES
+                    || output->stereoGlasses() != config->stereoGlasses()
+#endif
                     || output->abmLevel() != config->abmLevel()) {
                         return true;
                     }

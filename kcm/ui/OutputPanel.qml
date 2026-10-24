@@ -123,6 +123,24 @@ Kirigami.FormLayout {
                     text: i18n("Lists half side by side and top and bottom for displays switched to 3D by hand, plus native-resolution rows, columns and checkerboard for other stereo screens, after applying.")
                 }
             }
+
+            // USB-C 3D glasses: their mode two eyes wide comes up in side by side (full), one eye per half
+            Loader {
+                active: kcm.stereoGlassesSupported && (element.capabilities & KScreen.Output.Capability.StereoGlasses)
+                visible: active
+                sourceComponent: ColumnLayout {
+                    QQC2.CheckBox {
+                        text: i18n("USB-C 3D glasses")
+                        checked: element.stereoGlasses
+                        onToggled: element.stereoGlasses = checked
+                    }
+                    QQC2.Label {
+                        Layout.maximumWidth: Kirigami.Units.gridUnit * 32
+                        wrapMode: Text.WordWrap
+                        text: i18n("Brings a mode two eyes wide up in side by side (full), each eye at full resolution. Chosen by default for recognised glasses (XREAL One series); turn it on for other glasses that show the halves of a wide picture to the eyes.")
+                    }
+                }
+            }
         }
     }
 

@@ -269,6 +269,10 @@ QVariant OutputModel::data(const QModelIndex &index, int role) const
     case StereoViewingDistanceRole:
         return output->stereoViewingDistance();
 #endif
+#if HAVE_KSCREEN_STEREO_GLASSES
+    case StereoGlassesRole:
+        return output->stereoGlasses();
+#endif
     case AbmLevelRole:
         return output->abmLevel();
     }
@@ -487,6 +491,12 @@ bool OutputModel::setData(const QModelIndex &index, const QVariant &value, int r
         Q_EMIT dataChanged(index, index, {role});
         return true;
 #endif
+#if HAVE_KSCREEN_STEREO_GLASSES
+    case StereoGlassesRole:
+        output.ptr->setStereoGlasses(value.toBool());
+        Q_EMIT dataChanged(index, index, {role});
+        return true;
+#endif
 #if HAVE_KSCREEN_STEREO
     case AnaglyphRole:
         output.ptr->setAnaglyph(value.toBool());
@@ -597,6 +607,9 @@ QHash<int, QByteArray> OutputModel::roleNames() const
     roles[SideBySideFullTimingRole] = "sideBySideFullTiming";
     roles[StereoDepthSourceRole] = "stereoDepthSource";
     roles[StereoViewingDistanceRole] = "stereoViewingDistance";
+#endif
+#if HAVE_KSCREEN_STEREO_GLASSES
+    roles[StereoGlassesRole] = "stereoGlasses";
 #endif
     roles[AbmLevelRole] = "abmLevel";
     return roles;

@@ -84,10 +84,19 @@ int main()
         || output.stereoDepthSource() == KScreen::Output::StereoDepthSource::Flat || output.stereoViewingDistance();
 }
 " HAVE_KSCREEN_STEREO_DEPTH)
+check_cxx_source_compiles("
+#include <KScreen/Output>
+int main()
+{
+    KScreen::Output output;
+    return output.stereoGlasses() || (output.capabilities() & KScreen::Output::Capability::StereoGlasses);
+}
+" HAVE_KSCREEN_STEREO_GLASSES)
 cmake_pop_check_state()
 configure_file(config-stereo.h.cmake ${CMAKE_CURRENT_BINARY_DIR}/config-stereo.h)
 add_feature_info(Stereo HAVE_KSCREEN_STEREO "Stereo output settings from libkscreen")
 add_feature_info(StereoDepth HAVE_KSCREEN_STEREO_DEPTH "Every HDMI 1.4a 3D structure, the side by side (full) timing and the stereo depth settings from libkscreen")
+add_feature_info(StereoGlasses HAVE_KSCREEN_STEREO_GLASSES "The USB-C 3D glasses setting from libkscreen")
 find_package(Plasma ${PROJECT_DEP_VERSION} REQUIRED)
 find_package(PlasmaQuick ${PROJECT_DEP_VERSION} REQUIRED)
 

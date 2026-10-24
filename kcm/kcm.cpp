@@ -288,6 +288,11 @@ bool KCMKScreen::stereoDepthSupported() const
     return HAVE_KSCREEN_STEREO_DEPTH;
 }
 
+bool KCMKScreen::stereoGlassesSupported() const
+{
+    return HAVE_KSCREEN_STEREO_GLASSES;
+}
+
 bool KCMKScreen::primaryOutputSupported() const
 {
     if (!m_configHandler || !m_configHandler->config()) {

@@ -39,6 +39,8 @@ inline QString virtualStereoModeLabel(KScreen::Mode::Stereo3D layout, const QStr
         return i18n("%1 (frame sequential, left eye first)", rateText);
     case KScreen::Mode::Stereo3D::SequentialRightFirst:
         return i18n("%1 (frame sequential, right eye first)", rateText);
+    case KScreen::Mode::Stereo3D::SideBySideFull:
+        return i18n("%1 (3D side by side full, for USB-C 3D glasses)", rateText);
     default:
         return rateText;
     }
