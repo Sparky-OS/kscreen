@@ -166,6 +166,11 @@ QVariant OutputModel::data(const QModelIndex &index, int role) const
                 ret << depthStructureLabel(entry.stereo3D, rateText, isGameRate(rate));
                 break;
 #endif
+#if HAVE_KSCREEN_STEREO_SEQUENTIAL_DISPLAYPORT
+            case KScreen::Mode::Stereo3D::SequentialDisplayPort:
+                ret << sequentialDisplayPortLabel(rateText);
+                break;
+#endif
             }
 #else
             ret << rateText;
@@ -1201,6 +1206,11 @@ QList<OutputModel::RefreshEntry> OutputModel::refreshRates(const KScreen::Output
             return 7;
         case KScreen::Mode::Stereo3D::LDepthGraphics:
             return 8;
+#endif
+#if HAVE_KSCREEN_STEREO_SEQUENTIAL_DISPLAYPORT
+        // each eye at full resolution, one per refresh
+        case KScreen::Mode::Stereo3D::SequentialDisplayPort:
+            return 3;
 #endif
         default:
             return 9 + int(stereo3D);

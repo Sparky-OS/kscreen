@@ -30,6 +30,19 @@ private Q_SLOTS:
         }
     }
 
+#if HAVE_KSCREEN_STEREO_SEQUENTIAL_DISPLAYPORT
+    void sequentialDisplayPortLabels()
+    {
+        KLocalizedString::setLanguages({QStringLiteral("en_US")});
+        // its own name, apart from the twins KWin alternates itself
+        QCOMPARE(virtualStereoModeLabel(KScreen::Mode::Stereo3D::SequentialDisplayPort, QStringLiteral("120 Hz")),
+                 QStringLiteral("120 Hz (frame sequential, DisplayPort)"));
+        QCOMPARE(sequentialDisplayPortLabel(QStringLiteral("120 Hz")), QStringLiteral("120 Hz (3D frame sequential, DisplayPort)"));
+        QVERIFY(virtualStereoModeLabel(KScreen::Mode::Stereo3D::SequentialDisplayPort, QStringLiteral("120 Hz"))
+                != virtualStereoModeLabel(KScreen::Mode::Stereo3D::SequentialLeftFirst, QStringLiteral("120 Hz")));
+    }
+#endif
+
 #if HAVE_KSCREEN_STEREO_DEPTH
     void depthStructureLabels()
     {

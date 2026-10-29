@@ -100,12 +100,21 @@ int main()
     return output.stereoSwapEyes() || (output.capabilities() & KScreen::Output::Capability::StereoSwapEyes);
 }
 " HAVE_KSCREEN_STEREO_SWAP_EYES)
+check_cxx_source_compiles("
+#include <KScreen/Mode>
+int main()
+{
+    KScreen::Mode mode;
+    return mode.stereo3D() == KScreen::Mode::Stereo3D::SequentialDisplayPort;
+}
+" HAVE_KSCREEN_STEREO_SEQUENTIAL_DISPLAYPORT)
 cmake_pop_check_state()
 configure_file(config-stereo.h.cmake ${CMAKE_CURRENT_BINARY_DIR}/config-stereo.h)
 add_feature_info(Stereo HAVE_KSCREEN_STEREO "Stereo output settings from libkscreen")
 add_feature_info(StereoDepth HAVE_KSCREEN_STEREO_DEPTH "Every HDMI 1.4a 3D structure, the side by side (full) timing and the stereo depth settings from libkscreen")
 add_feature_info(StereoGlasses HAVE_KSCREEN_STEREO_GLASSES "The USB-C 3D glasses setting from libkscreen")
 add_feature_info(StereoSwapEyes HAVE_KSCREEN_STEREO_SWAP_EYES "The per-output eye swap from libkscreen")
+add_feature_info(StereoSequentialDisplayPort HAVE_KSCREEN_STEREO_SEQUENTIAL_DISPLAYPORT "DisplayPort's frame sequential stereo modes from libkscreen")
 find_package(Plasma ${PROJECT_DEP_VERSION} REQUIRED)
 find_package(PlasmaQuick ${PROJECT_DEP_VERSION} REQUIRED)
 

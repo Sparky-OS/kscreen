@@ -41,9 +41,25 @@ inline QString virtualStereoModeLabel(KScreen::Mode::Stereo3D layout, const QStr
         return i18n("%1 (frame sequential, right eye first)", rateText);
     case KScreen::Mode::Stereo3D::SideBySideFull:
         return i18n("%1 (3D side by side full, for USB-C 3D glasses)", rateText);
+#if HAVE_KSCREEN_STEREO_SEQUENTIAL_DISPLAYPORT
+    // the twin of a 2D mode the display did not declare: the source still alternates and signals the eyes
+    case KScreen::Mode::Stereo3D::SequentialDisplayPort:
+        return i18n("%1 (frame sequential, DisplayPort)", rateText);
+#endif
     default:
         return rateText;
     }
+}
+#endif
+
+#if HAVE_KSCREEN_STEREO_SEQUENTIAL_DISPLAYPORT
+/**
+ * The label of DisplayPort's frame sequential stereo when the display declares it (an EDID detailed
+ * timing or a DisplayID stereo block): the source sends one eye per frame and tells the display which.
+ */
+inline QString sequentialDisplayPortLabel(const QString &rateText)
+{
+    return i18nc("@item:inlistbox refresh rate of a DisplayPort 3D mode; %1 is the rate", "%1 (3D frame sequential, DisplayPort)", rateText);
 }
 #endif
 

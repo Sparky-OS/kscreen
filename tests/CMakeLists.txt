@@ -39,7 +39,7 @@ if(HAVE_KSCREEN_STEREO_DEPTH)
     target_include_directories(depthstructures PRIVATE ${CMAKE_BINARY_DIR}/kcm)
 endif()
 
-if(HAVE_KSCREEN_STEREO)
+if(HAVE_KSCREEN_STEREO_SEQUENTIAL_DISPLAYPORT)
     ecm_add_test(sequentialdisplayport.cpp
         ../kcm/output_model.cpp ../kcm/config_handler.cpp
         ${CMAKE_BINARY_DIR}/kcm/kcm_screen_debug.cpp
