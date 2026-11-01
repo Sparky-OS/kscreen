@@ -391,6 +391,54 @@ KCM.AbstractKCM {
             }
 
             QQC2.ToolButton {
+                id: screenViewOptions
+                anchors.left: parent.left
+                anchors.bottom: parent.bottom
+                anchors.margins: Kirigami.Units.smallSpacing
+
+                enabled: kcm.outputModel && kcm.backendReady
+
+                Accessible.description: text
+                text: i18nc("@action:button Options of the view that shows the arrangement of the screens", "View")
+                icon.name: "view-visible"
+                down: pressed || viewMenu.visible
+
+                onClicked: viewMenu.popup(screenViewOptions, 0, screenViewOptions.height)
+
+                QQC2.Menu {
+                    id: viewMenu
+
+                    QQC2.MenuItem {
+                        action: QQC2.Action {
+                            objectName: "zoomInAction"
+                            text: i18nc("@action:inmenu Magnify the view of the screen arrangement", "Zoom In")
+                            icon.name: "zoom-in"
+                            enabled: screen.zoom < screen.maximumZoom
+                            onTriggered: screen.zoomIn()
+                        }
+                    }
+                    QQC2.MenuItem {
+                        action: QQC2.Action {
+                            objectName: "zoomOutAction"
+                            text: i18nc("@action:inmenu Make the view of the screen arrangement smaller", "Zoom Out")
+                            icon.name: "zoom-out"
+                            enabled: screen.zoom > screen.minimumZoom
+                            onTriggered: screen.zoomOut()
+                        }
+                    }
+                    QQC2.MenuItem {
+                        action: QQC2.Action {
+                            objectName: "fitAllAction"
+                            text: i18nc("@action:inmenu Zoom and move the view so that every screen is shown", "Fit All")
+                            icon.name: "zoom-fit-best"
+                            enabled: screen.zoomed
+                            onTriggered: screen.fitAll()
+                        }
+                    }
+                }
+            }
+
+            QQC2.ToolButton {
                 id: screenEdit
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom

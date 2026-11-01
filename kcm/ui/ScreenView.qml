@@ -23,7 +23,8 @@ QQC2.ScrollView {
     onWidthChanged: resetTotalSize()
     onHeightChanged: resetTotalSize()
 
-    readonly property real relativeFactor: {
+    // The factor at which every screen fits into the view
+    readonly property real fitFactor: {
         const relativeSize = Qt.size(
             totalSize.width / (0.6 * width),
             totalSize.height / (0.65 * height),
@@ -37,8 +38,77 @@ QQC2.ScrollView {
         }
     }
 
-    readonly property int xOffset: (width - totalSize.width / relativeFactor) / 2;
-    readonly property int yOffset: (height - totalSize.height / relativeFactor) / 2;
+    // 1 shows every screen; the view pans by pan, in view pixels
+    property real zoom: 1
+    property point pan: Qt.point(0, 0)
+    readonly property real minimumZoom: 0.25
+    readonly property real maximumZoom: 16
+    readonly property bool zoomed: zoom !== 1 || pan.x !== 0 || pan.y !== 0
+
+    readonly property real relativeFactor: fitFactor / zoom
+
+    readonly property int xOffset: (width - totalSize.width / relativeFactor) / 2 + pan.x;
+    readonly property int yOffset: (height - totalSize.height / relativeFactor) / 2 + pan.y;
+
+    // Zooms by factor, keeping the point of the arrangement under viewPoint where it is
+    function zoomAt(viewPoint, factor) {
+        const newZoom = Math.min(maximumZoom, Math.max(minimumZoom, zoom * factor));
+        if (newZoom === zoom) {
+            return;
+        }
+        const arrangementX = (viewPoint.x - xOffset) * relativeFactor;
+        const arrangementY = (viewPoint.y - yOffset) * relativeFactor;
+        const newFactor = fitFactor / newZoom;
+        pan = Qt.point(viewPoint.x - arrangementX / newFactor - (width - totalSize.width / newFactor) / 2,
+                       viewPoint.y - arrangementY / newFactor - (height - totalSize.height / newFactor) / 2);
+        zoom = newZoom;
+    }
+
+    function zoomIn() {
+        zoomAt(Qt.point(width / 2, height / 2), 1.25);
+    }
+
+    function zoomOut() {
+        zoomAt(Qt.point(width / 2, height / 2), 0.8);
+    }
+
+    function fitAll() {
+        zoom = 1;
+        pan = Qt.point(0, 0);
+        resetTotalSize();
+    }
+
+    clip: true
+
+    WheelHandler {
+        acceptedModifiers: Qt.ControlModifier
+        onWheel: event => {
+            const steps = event.angleDelta.y / 120;
+            if (steps !== 0) {
+                screenView.zoomAt(point.position, Math.pow(1.25, steps));
+            }
+        }
+    }
+
+    // Drag the empty arrangement, or anywhere with the middle button, to pan
+    DragHandler {
+        id: panHandler
+        property point panStart
+        target: null
+        acceptedButtons: Qt.LeftButton | Qt.MiddleButton
+        grabPermissions: PointerHandler.CanTakeOverFromAnything | PointerHandler.TakeOverForbidden
+        cursorShape: active ? Qt.ClosedHandCursor : Qt.ArrowCursor
+        onActiveChanged: {
+            if (active) {
+                panStart = screenView.pan;
+            }
+        }
+        onTranslationChanged: {
+            if (active) {
+                screenView.pan = Qt.point(panStart.x + translation.x, panStart.y + translation.y);
+            }
+        }
+    }
 
     Kirigami.Heading {
         id: dragHint
