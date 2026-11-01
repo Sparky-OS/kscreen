@@ -41,6 +41,7 @@ QQC2.ScrollView {
     readonly property int yOffset: (height - totalSize.height / relativeFactor) / 2;
 
     Kirigami.Heading {
+        id: dragHint
         z: 90
         anchors {
             top: parent.top
@@ -60,6 +61,24 @@ QQC2.ScrollView {
                 duration: Kirigami.Units.shortDuration
             }
         }
+    }
+
+    QQC2.Label {
+        z: 90
+        anchors {
+            top: dragHint.bottom
+            left: parent.left
+            right: parent.right
+            leftMargin: Kirigami.Units.smallSpacing
+            rightMargin: Kirigami.Units.smallSpacing
+        }
+        horizontalAlignment: Text.AlignHCenter
+        wrapMode: Text.Wrap
+        font: Kirigami.Theme.smallFont
+        text: i18nc("@info:usagetip", "Hold Shift while dragging to place a screen without snapping")
+
+        opacity: dragHint.opacity
+        visible: dragHint.visible
     }
 
     Repeater {

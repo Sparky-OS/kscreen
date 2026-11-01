@@ -293,7 +293,9 @@ Item {
         onTranslationChanged: {
             var newX = dragStartPosition.x + translation.x;
             var newY = dragStartPosition.y + translation.y;
-            model.position = getAbsolutePosition(Qt.point(newX, newY));
+            // Holding Shift places the screen exactly where it is dropped
+            const snap = !(centroid.modifiers & Qt.ShiftModifier);
+            kcm.outputModel.sourceModel.setPosition(model.index, getAbsolutePosition(Qt.point(newX, newY)), snap);
         }
         onActiveChanged: {
             model.interactiveMove = active;
