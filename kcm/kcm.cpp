@@ -12,6 +12,7 @@
 #include "globalscalesettings.h"
 #include "kcm_screen_debug.h"
 #include "kwincompositing_setting.h"
+#include "screencontents.h"
 
 #include <kscreen/config.h>
 #include <kscreen/configmonitor.h>
@@ -52,12 +53,15 @@ KCMKScreen::KCMKScreen(QObject *parent, const KPluginMetaData &data)
     qmlRegisterUncreatableType<OutputModel>("org.kde.private.kcm.kscreen", 1, 0, "OutputModel", QStringLiteral("For enums"));
     qmlRegisterType<KScreen::Output>("org.kde.private.kcm.kscreen", 1, 0, "Output");
     qmlRegisterUncreatableType<KCMKScreen>("org.kde.private.kcm.kscreen", 1, 0, "KCMKScreen", QStringLiteral("For InvalidConfig enum"));
+    qmlRegisterUncreatableType<ScreenContents>("org.kde.private.kcm.kscreen", 1, 0, "ScreenContents", QStringLiteral("Use kcm.screenContents"));
+    qmlRegisterType<ScreenContentsItem>("org.kde.private.kcm.kscreen", 1, 0, "ScreenContentsItem");
     Log::instance();
 
     setButtons(Apply);
     setSupportsInstantApply(false);
 
     m_outputProxyModel = new ScreenSortProxyModel(this);
+    m_screenContents = new ScreenContents(this);
 
     m_loadCompressor = new QTimer(this);
     m_loadCompressor->setInterval(1000);
@@ -296,6 +300,11 @@ bool KCMKScreen::stereoGlassesSupported() const
 bool KCMKScreen::stereoSwapEyesSupported() const
 {
     return HAVE_KSCREEN_STEREO_SWAP_EYES;
+}
+
+ScreenContents *KCMKScreen::screenContents() const
+{
+    return m_screenContents;
 }
 
 bool KCMKScreen::primaryOutputSupported() const

@@ -17,6 +17,7 @@ class ConfigOperation;
 }
 
 class ConfigHandler;
+class ScreenContents;
 class OrientationSensor;
 class OutputIdentifier;
 
@@ -43,6 +44,7 @@ class KCMKScreen : public KQuickManagedConfigModule
     Q_PROPERTY(bool stereoDepthSupported READ stereoDepthSupported CONSTANT)
     Q_PROPERTY(bool stereoGlassesSupported READ stereoGlassesSupported CONSTANT)
     Q_PROPERTY(bool stereoSwapEyesSupported READ stereoSwapEyesSupported CONSTANT)
+    Q_PROPERTY(ScreenContents *screenContents READ screenContents CONSTANT)
 
 public:
     enum InvalidConfigReason {
@@ -90,6 +92,8 @@ public:
     bool stereoDepthSupported() const;
     bool stereoGlassesSupported() const;
     bool stereoSwapEyesSupported() const;
+
+    ScreenContents *screenContents() const;
 
     void doSave();
     Q_INVOKABLE void revertSettings();
@@ -143,6 +147,7 @@ private:
     bool m_needsKwinConfigReload = false;
 
     QSortFilterProxyModel *m_outputProxyModel;
+    ScreenContents *m_screenContents;
 
     QTimer *m_loadCompressor;
 };

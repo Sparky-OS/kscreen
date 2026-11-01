@@ -390,6 +390,23 @@ KCM.AbstractKCM {
                 interactive: false
             }
 
+            Binding {
+                target: kcm.screenContents
+                property: "active"
+                value: screenContainer.visible && root.Window.visibility !== Window.Hidden && root.Window.visibility !== Window.Minimized
+            }
+
+            QQC2.Label {
+                anchors.left: parent.left
+                anchors.right: screenEdit.left
+                anchors.bottom: screenViewOptions.top
+                anchors.margins: Kirigami.Units.smallSpacing
+                visible: kcm.screenContents.shown && kcm.screenContents.errorString.length > 0
+                wrapMode: Text.Wrap
+                font: Kirigami.Theme.smallFont
+                text: i18nc("@info:status %1 is the reason KWin gives", "Screen contents cannot be shown: %1", kcm.screenContents.errorString)
+            }
+
             QQC2.ToolButton {
                 id: screenViewOptions
                 anchors.left: parent.left
@@ -434,6 +451,16 @@ KCM.AbstractKCM {
                             enabled: screen.zoomed
                             onTriggered: screen.fitAll()
                         }
+                    QQC2.MenuSeparator {}
+                    QQC2.MenuItem {
+                        action: QQC2.Action {
+                            objectName: "showScreenContentsAction"
+                            text: i18nc("@option:check Show a live picture of each screen in the arrangement view", "Show Screen Contents")
+                            checkable: true
+                            checked: kcm.screenContents.shown
+                            onTriggered: kcm.screenContents.shown = checked
+                        }
+                    }
                     }
                 }
             }

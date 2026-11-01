@@ -9,6 +9,7 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
+import org.kde.private.kcm.kscreen as KScreen
 
 Item {
     id: output
@@ -101,6 +102,15 @@ Item {
         z: 2
     }
 
+    // What the screen shows, inside the outline and clear of the orientation bar
+    KScreen.ScreenContentsItem {
+        id: screenContents
+        anchors.fill: labelContainer
+        z: 0.5
+        source: kcm.screenContents
+        outputName: model.name
+    }
+
     Item {
         id: labelContainer
         anchors {
@@ -123,6 +133,8 @@ Item {
                 Layout.maximumHeight: labelContainer.height
 
                 text: model.display
+                style: screenContents.hasImage ? Text.Outline : Text.Normal
+                styleColor: Kirigami.Theme.backgroundColor
                 wrapMode: Text.Wrap
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
@@ -137,6 +149,8 @@ Item {
                 visible: labelContainer.height >= implicitHeight + nameLabel.implicitHeight
 
                 text: model.scale !== 1 ? textWithScale : textWithoutScale
+                style: screenContents.hasImage ? Text.Outline : Text.Normal
+                styleColor: Kirigami.Theme.backgroundColor
                 wrapMode: Text.Wrap
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter

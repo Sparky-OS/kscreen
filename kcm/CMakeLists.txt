@@ -6,6 +6,7 @@ target_sources(kcm_kscreen PRIVATE
     config_handler.cpp config_handler.h
     kcm.cpp kcm.h
     output_model.cpp output_model.h
+    screencontents.cpp screencontents.h
 )
 
 ecm_qt_declare_logging_category(kcm_kscreen
@@ -29,4 +30,5 @@ target_link_libraries(kcm_kscreen PRIVATE
     Plasma::PlasmaQuick
     KF6::KCMUtilsQuick
     KF6::Screen
+    Qt::Quick
 )
