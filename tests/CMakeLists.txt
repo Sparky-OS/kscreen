@@ -11,6 +11,13 @@ if(KF6KCMUtils_VERSION VERSION_GREATER_EQUAL "6.27.0")
     )
 endif()
 
+ecm_add_test(arrangementview.cpp
+    TEST_NAME arrangementview
+    LINK_LIBRARIES Qt6::Test Qt6::Quick Qt6::DBus KF6::KCMUtilsQuick KF6::CoreAddons)
+set_tests_properties(arrangementview PROPERTIES
+    ENVIRONMENT_MODIFICATION QT_PLUGIN_PATH=path_list_prepend:${CMAKE_BINARY_DIR}/bin
+)
+
 if(HAVE_KSCREEN_STEREO)
     ecm_add_tests(stereomodes.cpp LINK_LIBRARIES Qt6::Test KF6::I18n KF6::Screen)
     ecm_add_test(pairlabels.cpp TEST_NAME pairlabels LINK_LIBRARIES Qt6::Test)
