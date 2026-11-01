@@ -5,18 +5,27 @@
 */
 
 // Drives the arrangement view of the installed or the freshly built KCM, inside a running
-// compositor with two or more screens: snapping and Shift, zoom, pan and Fit All.
+// compositor with two or more screens: snapping and Shift, zoom, pan, Fit All and the
+// screen contents.
 //
 // It runs only when KSCREEN_TEST_ARRANGEMENT is set, because it needs a compositor.
 // KSCREEN_TEST_KCM: the KCM plugin file to load; without it, the one found on the plugin path
 // KSCREEN_TEST_CAPTURE_DIR: where to write pictures of the view, with what they should show
+// KSCREEN_TEST_SCREEN_COLORS: "NAME=#rrggbb;..." the colour each screen shows
+// KSCREEN_TEST_UPOWER_MOCK: set when a python-dbusmock UPower runs on the system bus
+// KSCREEN_TEST_EXPECT_REFUSAL: set when the compositor refuses the KCM's captures
+// KSCREEN_TEST_STEREO_SCREEN: a screen in a side by side 3D mode that shows red on its left half and blue on its right
 
 #include <KPluginMetaData>
 #include <KQuickConfigModule>
 #include <KQuickConfigModuleLoader>
 
 #include <QAbstractItemModel>
+#include <QDBusConnection>
+#include <QDBusMessage>
+#include <QDBusVariant>
 #include <QDir>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -27,6 +36,7 @@
 #include <QQuickItem>
 #include <QQuickWindow>
 #include <QTest>
+#include <QTimer>
 #include <QWheelEvent>
 
 #include <functional>
@@ -42,6 +52,7 @@ private Q_SLOTS:
     void init();
     void cleanupTestCase();
 
+    void testScreenContentsFollowBattery();
     void testDragSnaps();
     void testShiftDragDoesNotSnap();
     void testCtrlWheelZoomsAroundPointer();
@@ -49,6 +60,9 @@ private Q_SLOTS:
     void testDragOnEmptyAreaPans();
     void testMiddleDragOverScreenPans();
     void testFitAll();
+    void testScreenContentsShown();
+    void testScreenContentsRefused();
+    void testScreenContentsShowOneEye();
 
 private:
     struct Screen {
@@ -58,6 +72,7 @@ private:
         QRectF rect;
     };
     QList<Screen> screens() const;
+    Screen screenNamed(const QString &name) const;
     QPoint modelPosition(int row) const;
     QVariant evaluate(QQuickItem *item, const QString &expression) const;
     QObject *findObject(const QString &objectName) const;
@@ -73,6 +88,7 @@ private:
     std::unique_ptr<QQuickWindow> m_window;
     QQuickItem *m_view = nullptr;
     QString m_captureDir;
+    QHash<QString, QColor> m_screenColors;
 };
 
 static QQuickItem *findItem(QQuickItem *root, const std::function<bool(QQuickItem *)> &match)
@@ -118,6 +134,13 @@ void ArrangementViewTest::initTestCase()
     m_captureDir = qEnvironmentVariable("KSCREEN_TEST_CAPTURE_DIR");
     if (!m_captureDir.isEmpty()) {
         QDir().mkpath(m_captureDir);
+    }
+    const auto colors = qEnvironmentVariable("KSCREEN_TEST_SCREEN_COLORS").split(u';', Qt::SkipEmptyParts);
+    for (const QString &entry : colors) {
+        const auto parts = entry.split(u'=');
+        if (parts.size() == 2) {
+            m_screenColors.insert(parts[0], QColor(parts[1]));
+        }
     }
 
     const QString pluginFile = qEnvironmentVariable("KSCREEN_TEST_KCM");
@@ -195,6 +218,17 @@ QList<ArrangementViewTest::Screen> ArrangementViewTest::screens() const
         return a.rect.x() < b.rect.x();
     });
     return result;
+}
+
+ArrangementViewTest::Screen ArrangementViewTest::screenNamed(const QString &name) const
+{
+    const auto all = screens();
+    for (const Screen &screen : all) {
+        if (screen.name == name) {
+            return screen;
+        }
+    }
+    return {};
 }
 
 QPoint ArrangementViewTest::modelPosition(int row) const
@@ -282,6 +316,50 @@ void ArrangementViewTest::capture(const QString &name, const QJsonObject &expect
     QFile file(m_captureDir + u'/' + name + u".json"_s);
     QVERIFY(file.open(QIODevice::WriteOnly));
     file.write(QJsonDocument(record).toJson());
+}
+
+void ArrangementViewTest::testScreenContentsFollowBattery()
+{
+    if (qEnvironmentVariableIsEmpty("KSCREEN_TEST_UPOWER_MOCK")) {
+        QSKIP("Needs a mock UPower on the system bus: set KSCREEN_TEST_UPOWER_MOCK");
+    }
+    QObject *action = findObject(u"showScreenContentsAction"_s);
+    QVERIFY2(action, "no Show Screen Contents action in the arrangement view's menu");
+
+    auto setOnBattery = [](bool onBattery) {
+        QDBusMessage message = QDBusMessage::createMethodCall(u"org.freedesktop.UPower"_s,
+                                                              u"/org/freedesktop/UPower"_s,
+                                                              u"org.freedesktop.DBus.Properties"_s,
+                                                              u"Set"_s);
+        message << u"org.freedesktop.UPower"_s << u"OnBattery"_s << QVariant::fromValue(QDBusVariant(onBattery));
+        const QDBusMessage reply = QDBusConnection::systemBus().call(message);
+        QVERIFY2(reply.type() == QDBusMessage::ReplyMessage, qPrintable(reply.errorMessage()));
+    };
+
+    // Before the person chooses, the previews follow the power source
+    setOnBattery(false);
+    QTRY_VERIFY_WITH_TIMEOUT(action->property("checked").toBool(), 5000);
+    setOnBattery(true);
+    QTRY_VERIFY_WITH_TIMEOUT(!action->property("checked").toBool(), 5000);
+    setOnBattery(false);
+    QTRY_VERIFY_WITH_TIMEOUT(action->property("checked").toBool(), 5000);
+
+    // Their choice wins over the power source
+    QMetaObject::invokeMethod(action, "trigger");
+    QTRY_VERIFY(!action->property("checked").toBool());
+    setOnBattery(true);
+    QTest::qWait(500);
+    QVERIFY(!action->property("checked").toBool());
+    setOnBattery(false);
+    QTest::qWait(500);
+    QVERIFY(!action->property("checked").toBool());
+
+    QMetaObject::invokeMethod(action, "trigger");
+    QTRY_VERIFY(action->property("checked").toBool());
+    setOnBattery(true);
+    QTest::qWait(500);
+    QVERIFY(action->property("checked").toBool());
+    setOnBattery(false);
 }
 
 void ArrangementViewTest::testDragSnaps()
@@ -451,6 +529,184 @@ void ArrangementViewTest::testFitAll()
         QVERIFY(std::abs(back[i].rect.top() - fitted[i].rect.top()) <= 1);
         QVERIFY(std::abs(back[i].rect.width() - fitted[i].rect.width()) <= 1);
     }
+}
+
+static QColor medianColor(const QImage &image, const QRectF &rect)
+{
+    QList<int> reds, greens, blues;
+    // a ring inside the screen's rectangle, clear of the labels in the middle
+    for (qreal fy : {0.2, 0.8}) {
+        for (qreal fx = 0.1; fx <= 0.9; fx += 0.05) {
+            const QPoint point = QPointF(rect.left() + rect.width() * fx, rect.top() + rect.height() * fy).toPoint();
+            if (!image.rect().contains(point)) {
+                continue;
+            }
+            const QColor color = image.pixelColor(point);
+            reds << color.red();
+            greens << color.green();
+            blues << color.blue();
+        }
+    }
+    if (reds.isEmpty()) {
+        return {};
+    }
+    std::sort(reds.begin(), reds.end());
+    std::sort(greens.begin(), greens.end());
+    std::sort(blues.begin(), blues.end());
+    return QColor(reds[reds.size() / 2], greens[greens.size() / 2], blues[blues.size() / 2]);
+}
+
+static int colorDistance(const QColor &a, const QColor &b)
+{
+    return std::abs(a.red() - b.red()) + std::abs(a.green() - b.green()) + std::abs(a.blue() - b.blue());
+}
+
+void ArrangementViewTest::testScreenContentsShown()
+{
+    if (m_screenColors.isEmpty() || !qEnvironmentVariableIsEmpty("KSCREEN_TEST_EXPECT_REFUSAL")) {
+        QSKIP("Needs coloured screens and a compositor that allows captures: set KSCREEN_TEST_SCREEN_COLORS");
+    }
+    QObject *action = findObject(u"showScreenContentsAction"_s);
+    QVERIFY2(action, "no Show Screen Contents action in the arrangement view's menu");
+
+    if (action->property("checked").toBool()) {
+        QMetaObject::invokeMethod(action, "trigger");
+    }
+    QTRY_VERIFY(!action->property("checked").toBool());
+    QTest::qWait(1500);
+    QImage image = m_window->grabWindow();
+    for (auto it = m_screenColors.cbegin(); it != m_screenColors.cend(); ++it) {
+        const Screen screen = screenNamed(it.key());
+        QVERIFY2(screen.item, qPrintable(it.key()));
+        const QColor seen = medianColor(image, screen.rect);
+        qInfo() << "off" << it.key() << seen.name();
+        QVERIFY2(colorDistance(seen, it.value()) > 120, qPrintable(u"%1 shows %2 with the previews off"_s.arg(it.key(), seen.name())));
+    }
+    QJsonObject colors;
+    for (auto it = m_screenColors.cbegin(); it != m_screenColors.cend(); ++it) {
+        colors.insert(it.key(), it.value().name());
+    }
+    capture(u"previews-off"_s, QJsonObject{{u"previews"_s, false}, {u"colors"_s, colors}});
+
+    QMetaObject::invokeMethod(action, "trigger");
+    QTRY_VERIFY(action->property("checked").toBool());
+    // One capture per screen and second; wait for at least one
+    QElapsedTimer timer;
+    timer.start();
+    bool allShown = false;
+    while (!allShown && timer.elapsed() < 8000) {
+        QTest::qWait(250);
+        image = m_window->grabWindow();
+        allShown = true;
+        for (auto it = m_screenColors.cbegin(); it != m_screenColors.cend(); ++it) {
+            allShown = allShown && colorDistance(medianColor(image, screenNamed(it.key()).rect), it.value()) <= 60;
+        }
+    }
+    if (QObject *contents = m_module->property("screenContents").value<QObject *>()) {
+        qInfo() << "screen contents: shown" << contents->property("shown") << "active" << contents->property("active") << "error"
+                << contents->property("errorString");
+    }
+    for (auto it = m_screenColors.cbegin(); it != m_screenColors.cend(); ++it) {
+        const QColor seen = medianColor(image, screenNamed(it.key()).rect);
+        qInfo() << "on" << it.key() << seen.name() << "after" << timer.elapsed() << "ms";
+        QVERIFY2(colorDistance(seen, it.value()) <= 60, qPrintable(u"%1 shows %2, expected %3"_s.arg(it.key(), seen.name(), it.value().name())));
+    }
+    capture(u"previews-on"_s, QJsonObject{{u"previews"_s, true}, {u"colors"_s, colors}});
+
+    // The view keeps answering while the previews run: the longest pause of a 10 ms timer over three seconds;
+    // and the captures leave no file descriptor behind
+    const auto openFiles = [] {
+        return QDir(u"/proc/self/fd"_s).entryList(QDir::NoDotAndDotDot | QDir::AllEntries | QDir::System).size();
+    };
+    const qsizetype filesBefore = openFiles();
+    qint64 longest = 0;
+    QElapsedTimer gap;
+    gap.start();
+    QTimer tick;
+    tick.setInterval(10);
+    connect(&tick, &QTimer::timeout, this, [&] {
+        longest = std::max(longest, gap.restart());
+    });
+    tick.start();
+    QTest::qWait(3000);
+    tick.stop();
+    qInfo() << "longest pause of the event loop with previews on:" << longest << "ms";
+    QVERIFY2(longest < 250, qPrintable(u"the event loop stopped for %1 ms"_s.arg(longest)));
+    const qsizetype filesAfter = openFiles();
+    qInfo() << "open files before and after three seconds of captures:" << filesBefore << filesAfter;
+    QVERIFY2(filesAfter <= filesBefore + 2, qPrintable(u"%1 files open, %2 before"_s.arg(filesAfter).arg(filesBefore)));
+
+    // Zoomed in, the previews follow the screens
+    QObject *zoomIn = findObject(u"zoomInAction"_s);
+    QVERIFY(zoomIn);
+    QMetaObject::invokeMethod(zoomIn, "trigger");
+    QTest::qWait(1500);
+    capture(u"previews-on-zoomed"_s, QJsonObject{{u"previews"_s, true}, {u"colors"_s, colors}, {u"zoomSteps"_s, 1}, {u"menu"_s, true}});
+}
+
+void ArrangementViewTest::testScreenContentsRefused()
+{
+    if (qEnvironmentVariableIsEmpty("KSCREEN_TEST_EXPECT_REFUSAL")) {
+        QSKIP("Needs a compositor that refuses captures: set KSCREEN_TEST_EXPECT_REFUSAL");
+    }
+    QObject *action = findObject(u"showScreenContentsAction"_s);
+    QVERIFY2(action, "no Show Screen Contents action in the arrangement view's menu");
+    if (!action->property("checked").toBool()) {
+        QMetaObject::invokeMethod(action, "trigger");
+    }
+    QObject *contents = m_module->property("screenContents").value<QObject *>();
+    QVERIFY(contents);
+    QTRY_VERIFY_WITH_TIMEOUT(!contents->property("errorString").toString().isEmpty(), 5000);
+    qInfo() << "refused:" << contents->property("errorString").toString();
+    capture(u"previews-refused"_s, QJsonObject{{u"previews"_s, true}, {u"refused"_s, true}});
+
+    // The arrangement still works
+    const auto before = screens();
+    const QPointF from = emptyPoint();
+    QVERIFY2(!from.isNull(), "no empty point in the view");
+    press(Qt::LeftButton, Qt::NoModifier, from);
+    for (int i = 1; i <= 4; ++i) {
+        move(Qt::NoModifier, from + QPointF(10 * i, 0));
+    }
+    release(Qt::LeftButton, Qt::NoModifier, from + QPointF(40, 0));
+    QVERIFY(std::abs(screens().first().rect.left() - before.first().rect.left() - 40) <= 1);
+}
+
+void ArrangementViewTest::testScreenContentsShowOneEye()
+{
+    const QString name = qEnvironmentVariable("KSCREEN_TEST_STEREO_SCREEN");
+    if (name.isEmpty() || !qEnvironmentVariableIsEmpty("KSCREEN_TEST_EXPECT_REFUSAL")) {
+        QSKIP("Needs a screen in a side by side 3D mode, red on its left half and blue on its right: set KSCREEN_TEST_STEREO_SCREEN");
+    }
+    QObject *action = findObject(u"showScreenContentsAction"_s);
+    QVERIFY2(action, "no Show Screen Contents action in the arrangement view's menu");
+    if (!action->property("checked").toBool()) {
+        QMetaObject::invokeMethod(action, "trigger");
+    }
+
+    // Stereo KWin captures a screen in a 3D mode as both eyes side by side; the flat view shows one of them,
+    // as wide as the screen: red on the left half and blue on the right, where both eyes squeezed into the
+    // screen's rectangle would show red at 70 % of its width
+    const QColor red(0xc0, 0, 0);
+    const QColor blue(0, 0, 0xc0);
+    QColor left;
+    QColor right;
+    QElapsedTimer timer;
+    timer.start();
+    while (timer.elapsed() < 8000) {
+        QTest::qWait(250);
+        const QImage image = m_window->grabWindow();
+        const QRectF rect = screenNamed(name).rect;
+        left = image.pixelColor(QPointF(rect.left() + rect.width() * 0.2, rect.top() + rect.height() * 0.2).toPoint());
+        right = image.pixelColor(QPointF(rect.left() + rect.width() * 0.7, rect.top() + rect.height() * 0.2).toPoint());
+        if (colorDistance(left, red) <= 60 && colorDistance(right, blue) <= 60) {
+            break;
+        }
+    }
+    qInfo() << name << "shows" << left.name() << "at 20 % and" << right.name() << "at 70 % of its width";
+    capture(u"previews-on-stereo-screen"_s, QJsonObject{{u"previews"_s, true}, {u"stereoScreen"_s, name}});
+    QVERIFY2(colorDistance(left, red) <= 60, qPrintable(u"%1 shows %2 at 20 %, expected red"_s.arg(name, left.name())));
+    QVERIFY2(colorDistance(right, blue) <= 60, qPrintable(u"%1 shows %2 at 70 %, expected blue"_s.arg(name, right.name())));
 }
 
 QTEST_MAIN(ArrangementViewTest)
