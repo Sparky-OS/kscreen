@@ -5,7 +5,7 @@
 */
 
 // Drives the arrangement view of the installed or the freshly built KCM, inside a running
-// compositor with two or more screens: snapping and Shift.
+// compositor with two or more screens: snapping and Shift, zoom, pan and Fit All.
 //
 // It runs only when KSCREEN_TEST_ARRANGEMENT is set, because it needs a compositor.
 // KSCREEN_TEST_KCM: the KCM plugin file to load; without it, the one found on the plugin path
@@ -27,6 +27,7 @@
 #include <QQuickItem>
 #include <QQuickWindow>
 #include <QTest>
+#include <QWheelEvent>
 
 #include <functional>
 
@@ -43,6 +44,11 @@ private Q_SLOTS:
 
     void testDragSnaps();
     void testShiftDragDoesNotSnap();
+    void testCtrlWheelZoomsAroundPointer();
+    void testWheelWithoutCtrlDoesNotZoom();
+    void testDragOnEmptyAreaPans();
+    void testMiddleDragOverScreenPans();
+    void testFitAll();
 
 private:
     struct Screen {
@@ -54,9 +60,12 @@ private:
     QList<Screen> screens() const;
     QPoint modelPosition(int row) const;
     QVariant evaluate(QQuickItem *item, const QString &expression) const;
+    QObject *findObject(const QString &objectName) const;
+    QPointF emptyPoint() const;
     void press(Qt::MouseButton button, Qt::KeyboardModifiers modifiers, QPointF at);
     void move(Qt::KeyboardModifiers modifiers, QPointF to);
     void release(Qt::MouseButton button, Qt::KeyboardModifiers modifiers, QPointF at);
+    void wheel(QPointF at, int angle, Qt::KeyboardModifiers modifiers);
     void capture(const QString &name, const QJsonObject &expectation = {});
     void reload();
 
@@ -148,6 +157,9 @@ void ArrangementViewTest::reload()
 void ArrangementViewTest::init()
 {
     reload();
+    if (m_view->metaObject()->indexOfMethod("fitAll()") >= 0) {
+        QMetaObject::invokeMethod(m_view, "fitAll");
+    }
     m_view->setProperty("interactive", true);
     // the view grows to its full height when it is edited
     QTest::qWait(600);
@@ -192,6 +204,29 @@ QPoint ArrangementViewTest::modelPosition(int row) const
     return model->data(model->index(row, 0), role).toPoint();
 }
 
+QObject *ArrangementViewTest::findObject(const QString &objectName) const
+{
+    return m_module->mainUi()->findChild<QObject *>(objectName);
+}
+
+QPointF ArrangementViewTest::emptyPoint() const
+{
+    // A point of the view that no screen covers, away from the heading and the buttons
+    const QRectF view = m_view->mapRectToScene(QRectF(0, 0, m_view->width(), m_view->height()));
+    const auto all = screens();
+    for (qreal y = view.top() + view.height() * 0.35; y < view.bottom() - 60; y += 8) {
+        for (qreal x = view.left() + 30; x < view.right() - 30; x += 8) {
+            const QPointF point(x, y);
+            if (std::none_of(all.cbegin(), all.cend(), [&point](const Screen &screen) {
+                    return screen.rect.adjusted(-12, -12, 12, 12).contains(point);
+                })) {
+                return point;
+            }
+        }
+    }
+    return {};
+}
+
 void ArrangementViewTest::press(Qt::MouseButton button, Qt::KeyboardModifiers modifiers, QPointF at)
 {
     QTest::mousePress(m_window.get(), button, modifiers, at.toPoint());
@@ -206,6 +241,13 @@ void ArrangementViewTest::move(Qt::KeyboardModifiers modifiers, QPointF to)
 void ArrangementViewTest::release(Qt::MouseButton button, Qt::KeyboardModifiers modifiers, QPointF at)
 {
     QTest::mouseRelease(m_window.get(), button, modifiers, at.toPoint());
+    QTest::qWait(100);
+}
+
+void ArrangementViewTest::wheel(QPointF at, int angle, Qt::KeyboardModifiers modifiers)
+{
+    QWheelEvent event(at, m_window->mapToGlobal(at), QPoint(), QPoint(0, angle), Qt::NoButton, modifiers, Qt::NoScrollPhase, false);
+    QCoreApplication::sendEvent(m_window.get(), &event);
     QTest::qWait(100);
 }
 
@@ -280,6 +322,135 @@ void ArrangementViewTest::testShiftDragDoesNotSnap()
     QCOMPARE(end.x(), start.x());
     QVERIFY2(std::abs(end.y() - start.y() - down * factor) <= factor + 1,
              qPrintable(u"lowered by %1, expected %2"_s.arg(end.y() - start.y()).arg(down * factor)));
+}
+
+void ArrangementViewTest::testCtrlWheelZoomsAroundPointer()
+{
+    const auto before = screens();
+    QList<QPoint> positions;
+    for (const Screen &screen : before) {
+        positions << modelPosition(screen.row);
+    }
+    const Screen first = before.first();
+    // The pointer over a known point of the first screen, a quarter into it
+    const QPointF at(first.rect.left() + first.rect.width() / 4, first.rect.center().y());
+    capture(u"zoom-before"_s);
+    wheel(at, 120, Qt::ControlModifier);
+    const auto after = screens();
+    QCOMPARE(after.size(), before.size());
+    capture(u"zoomed-in-one-step"_s, QJsonObject{{u"zoomSteps"_s, 1}, {u"at"_s, QJsonArray{at.x(), at.y()}}, {u"step"_s, 1.25}});
+    for (int i = 0; i < before.size(); ++i) {
+        QVERIFY2(std::abs(after[i].rect.width() - before[i].rect.width() * 1.25) <= 1.5,
+                 qPrintable(u"%1 is %2 wide, expected %3"_s.arg(after[i].name).arg(after[i].rect.width()).arg(before[i].rect.width() * 1.25)));
+        // The point under the pointer stays under it
+        const qreal expectedLeft = at.x() - (at.x() - before[i].rect.left()) * 1.25;
+        const qreal expectedTop = at.y() - (at.y() - before[i].rect.top()) * 1.25;
+        QVERIFY2(std::abs(after[i].rect.left() - expectedLeft) <= 1.5, qPrintable(u"left %1, expected %2"_s.arg(after[i].rect.left()).arg(expectedLeft)));
+        QVERIFY2(std::abs(after[i].rect.top() - expectedTop) <= 1.5, qPrintable(u"top %1, expected %2"_s.arg(after[i].rect.top()).arg(expectedTop)));
+    }
+    wheel(at, -120, Qt::ControlModifier);
+    const auto back = screens();
+    for (int i = 0; i < before.size(); ++i) {
+        QVERIFY(std::abs(back[i].rect.left() - before[i].rect.left()) <= 2);
+        QVERIFY(std::abs(back[i].rect.width() - before[i].rect.width()) <= 2);
+    }
+    // Zooming changes no screen's place
+    for (int i = 0; i < before.size(); ++i) {
+        QCOMPARE(modelPosition(before[i].row), positions[i]);
+    }
+}
+
+void ArrangementViewTest::testWheelWithoutCtrlDoesNotZoom()
+{
+    const auto before = screens();
+    wheel(before.first().rect.center(), 120, Qt::NoModifier);
+    const auto after = screens();
+    for (int i = 0; i < before.size(); ++i) {
+        QCOMPARE(after[i].rect.width(), before[i].rect.width());
+    }
+}
+
+void ArrangementViewTest::testDragOnEmptyAreaPans()
+{
+    const auto before = screens();
+    QList<QPoint> positions;
+    for (const Screen &screen : before) {
+        positions << modelPosition(screen.row);
+    }
+    const QPointF from = emptyPoint();
+    QVERIFY2(!from.isNull(), "no empty point in the view");
+    const QPointF delta(60, 30);
+    press(Qt::LeftButton, Qt::NoModifier, from);
+    for (int i = 1; i <= 6; ++i) {
+        move(Qt::NoModifier, from + delta * i / 6);
+    }
+    release(Qt::LeftButton, Qt::NoModifier, from + delta);
+    const auto after = screens();
+    capture(u"panned-empty-area"_s, QJsonObject{{u"pan"_s, QJsonArray{delta.x(), delta.y()}}, {u"from"_s, QJsonArray{from.x(), from.y()}}});
+    for (int i = 0; i < before.size(); ++i) {
+        QVERIFY2(std::abs(after[i].rect.left() - before[i].rect.left() - delta.x()) <= 1,
+                 qPrintable(u"%1 moved by %2, expected %3"_s.arg(after[i].name).arg(after[i].rect.left() - before[i].rect.left()).arg(delta.x())));
+        QVERIFY(std::abs(after[i].rect.top() - before[i].rect.top() - delta.y()) <= 1);
+        QCOMPARE(modelPosition(after[i].row), positions[i]);
+    }
+}
+
+void ArrangementViewTest::testMiddleDragOverScreenPans()
+{
+    const auto before = screens();
+    QList<QPoint> positions;
+    for (const Screen &screen : before) {
+        positions << modelPosition(screen.row);
+    }
+    const QPointF from = before.first().rect.center();
+    const QPointF delta(-40, 25);
+    press(Qt::MiddleButton, Qt::NoModifier, from);
+    for (int i = 1; i <= 6; ++i) {
+        move(Qt::NoModifier, from + delta * i / 6);
+    }
+    release(Qt::MiddleButton, Qt::NoModifier, from + delta);
+    const auto after = screens();
+    capture(u"panned-middle-button"_s, QJsonObject{{u"pan"_s, QJsonArray{delta.x(), delta.y()}}});
+    for (int i = 0; i < before.size(); ++i) {
+        QVERIFY2(std::abs(after[i].rect.left() - before[i].rect.left() - delta.x()) <= 1,
+                 qPrintable(u"%1 moved by %2, expected %3"_s.arg(after[i].name).arg(after[i].rect.left() - before[i].rect.left()).arg(delta.x())));
+        QVERIFY(std::abs(after[i].rect.top() - before[i].rect.top() - delta.y()) <= 1);
+        QCOMPARE(modelPosition(after[i].row), positions[i]);
+    }
+}
+
+void ArrangementViewTest::testFitAll()
+{
+    const auto fitted = screens();
+    QObject *fitAll = findObject(u"fitAllAction"_s);
+    QVERIFY2(fitAll, "no Fit All action in the arrangement view's menu");
+    QObject *zoomIn = findObject(u"zoomInAction"_s);
+    QVERIFY2(zoomIn, "no Zoom In action in the arrangement view's menu");
+
+    QMetaObject::invokeMethod(zoomIn, "trigger");
+    QMetaObject::invokeMethod(zoomIn, "trigger");
+    const auto zoomed = screens();
+    QVERIFY(std::abs(zoomed.first().rect.width() - fitted.first().rect.width() * 1.5625) <= 2);
+    // The middle button pans from anywhere, over a screen too
+    const QPointF from = zoomed.first().rect.center();
+    press(Qt::MiddleButton, Qt::NoModifier, from);
+    for (int i = 1; i <= 4; ++i) {
+        move(Qt::NoModifier, from + QPointF(-20 * i, 10 * i));
+    }
+    release(Qt::MiddleButton, Qt::NoModifier, from + QPointF(-80, 40));
+    const auto panned = screens();
+    QVERIFY(std::abs(panned.first().rect.left() - zoomed.first().rect.left() + 80) <= 1);
+    QVERIFY(std::abs(panned.first().rect.top() - zoomed.first().rect.top() - 40) <= 1);
+    capture(u"zoomed-and-panned"_s, QJsonObject{{u"zoomSteps"_s, 2}, {u"menu"_s, true}, {u"pan"_s, QJsonArray{-80, 40}}});
+
+    QMetaObject::invokeMethod(fitAll, "trigger");
+    const auto back = screens();
+    capture(u"fit-all"_s, QJsonObject{{u"fit"_s, true}});
+    for (int i = 0; i < fitted.size(); ++i) {
+        QVERIFY(std::abs(back[i].rect.left() - fitted[i].rect.left()) <= 1);
+        QVERIFY(std::abs(back[i].rect.top() - fitted[i].rect.top()) <= 1);
+        QVERIFY(std::abs(back[i].rect.width() - fitted[i].rect.width()) <= 1);
+    }
 }
 
 QTEST_MAIN(ArrangementViewTest)
