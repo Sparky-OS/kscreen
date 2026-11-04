@@ -76,6 +76,7 @@ private Q_SLOTS:
     void testPhysicalSizeShown();
     void testCustomModeReachesKWin();
     void testScreenNamesOverlay();
+    void testPlainWheelPansWhenChosen();
 
 private:
     struct Screen {
@@ -664,6 +665,85 @@ void ArrangementViewTest::testScreenNamesOverlay()
     QTRY_COMPARE_WITH_TIMEOUT(look(u"names-off-again.png"_s, &box), 0, 10000);
     KSharedConfig::openConfig(u"kcm_kscreenrc"_s)->reparseConfiguration();
     QVERIFY(!KSharedConfig::openConfig(u"kcm_kscreenrc"_s)->group(u"ArrangementView"_s).readEntry("ShowScreenNames", true));
+}
+
+void ArrangementViewTest::testPlainWheelPansWhenChosen()
+{
+    QObject *action = findObject(u"wheelPansAction"_s);
+    QVERIFY2(action, "no Wheel Pans the View action in the arrangement view's menu");
+    QVERIFY(!action->property("checked").toBool());
+
+    const auto before = screens();
+    QList<QPoint> positions;
+    for (const Screen &screen : before) {
+        positions << modelPosition(screen.row);
+    }
+    const QPointF at = emptyPoint();
+    QVERIFY(!at.isNull());
+    // as long as it is not chosen, the wheel does nothing over the view
+    wheel(at, 120, Qt::NoModifier);
+    auto after = screens();
+    for (int i = 0; i < before.size(); ++i) {
+        QCOMPARE(after[i].rect.topLeft(), before[i].rect.topLeft());
+    }
+
+    QMetaObject::invokeMethod(action, "trigger");
+    QVERIFY(action->property("checked").toBool());
+    KSharedConfig::openConfig(u"kcm_kscreenrc"_s)->reparseConfiguration();
+    QVERIFY(KSharedConfig::openConfig(u"kcm_kscreenrc"_s)->group(u"ArrangementView"_s).readEntry("WheelPans", false));
+
+    // a notch up moves the arrangement down by 60 pixels of the view, the way a page scrolls to show what is above
+    wheel(at, 120, Qt::NoModifier);
+    after = screens();
+    capture(u"wheel-panned-up"_s, QJsonObject{{u"pan"_s, QJsonArray{0, 60}}});
+    for (int i = 0; i < before.size(); ++i) {
+        QVERIFY2(std::abs(after[i].rect.top() - before[i].rect.top() - 60) <= 1,
+                 qPrintable(u"%1 moved by %2, expected 60"_s.arg(after[i].name).arg(after[i].rect.top() - before[i].rect.top())));
+        QVERIFY(std::abs(after[i].rect.left() - before[i].rect.left()) <= 1);
+        QVERIFY(std::abs(after[i].rect.width() - before[i].rect.width()) <= 1);
+    }
+    wheel(at, -240, Qt::NoModifier);
+    after = screens();
+    for (int i = 0; i < before.size(); ++i) {
+        QVERIFY(std::abs(after[i].rect.top() - before[i].rect.top() + 60) <= 1);
+    }
+    wheel(at, 120, Qt::NoModifier);
+
+    // Shift turns the wheel sideways, and a sideways wheel moves it sideways
+    wheel(at, 120, Qt::ShiftModifier);
+    after = screens();
+    for (int i = 0; i < before.size(); ++i) {
+        QVERIFY2(std::abs(after[i].rect.left() - before[i].rect.left() - 60) <= 1,
+                 qPrintable(u"%1 moved by %2, expected 60"_s.arg(after[i].name).arg(after[i].rect.left() - before[i].rect.left())));
+        QVERIFY(std::abs(after[i].rect.top() - before[i].rect.top()) <= 1);
+    }
+    {
+        QWheelEvent event(at, m_window->mapToGlobal(at), QPoint(), QPoint(-120, 0), Qt::NoButton, Qt::NoModifier, Qt::NoScrollPhase, false);
+        QCoreApplication::sendEvent(m_window.get(), &event);
+        QTest::qWait(100);
+    }
+    after = screens();
+    for (int i = 0; i < before.size(); ++i) {
+        QVERIFY(std::abs(after[i].rect.left() - before[i].rect.left()) <= 1);
+    }
+
+    // Ctrl still zooms, and no screen's place changes
+    wheel(at, 120, Qt::ControlModifier);
+    const auto zoomed = screens();
+    QVERIFY(std::abs(zoomed.first().rect.width() - before.first().rect.width() * 1.25) <= 1.5);
+    // panning and zooming move the view, never a screen
+    for (int i = 0; i < zoomed.size(); ++i) {
+        QCOMPARE(modelPosition(zoomed[i].row), positions[i]);
+    }
+
+    QMetaObject::invokeMethod(action, "trigger");
+    QVERIFY(!action->property("checked").toBool());
+    const auto still = screens();
+    wheel(at, 120, Qt::NoModifier);
+    after = screens();
+    for (int i = 0; i < still.size(); ++i) {
+        QCOMPARE(after[i].rect.topLeft(), still[i].rect.topLeft());
+    }
 }
 
 void ArrangementViewTest::testScreenContentsFollowBattery()
