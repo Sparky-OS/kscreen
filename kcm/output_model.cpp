@@ -20,6 +20,45 @@
 #include <numeric>
 #include <ranges>
 
+// The flipped transforms of wl_output mirror the picture about the vertical axis, then turn it
+static bool isFlipped(KScreen::Output::Rotation rotation)
+{
+    return rotation == KScreen::Output::Flipped || rotation == KScreen::Output::Flipped90 || rotation == KScreen::Output::Flipped180
+        || rotation == KScreen::Output::Flipped270;
+}
+
+static KScreen::Output::Rotation unflipped(KScreen::Output::Rotation rotation)
+{
+    switch (rotation) {
+    case KScreen::Output::Flipped:
+        return KScreen::Output::None;
+    case KScreen::Output::Flipped90:
+        return KScreen::Output::Left;
+    case KScreen::Output::Flipped180:
+        return KScreen::Output::Inverted;
+    case KScreen::Output::Flipped270:
+        return KScreen::Output::Right;
+    default:
+        return rotation;
+    }
+}
+
+static KScreen::Output::Rotation flipped(KScreen::Output::Rotation rotation)
+{
+    switch (rotation) {
+    case KScreen::Output::None:
+        return KScreen::Output::Flipped;
+    case KScreen::Output::Left:
+        return KScreen::Output::Flipped90;
+    case KScreen::Output::Inverted:
+        return KScreen::Output::Flipped180;
+    case KScreen::Output::Right:
+        return KScreen::Output::Flipped270;
+    default:
+        return rotation;
+    }
+}
+
 OutputModel::OutputModel(ConfigHandler *configHandler)
     : QAbstractListModel(configHandler)
     , m_config(configHandler)
@@ -65,7 +104,9 @@ QVariant OutputModel::data(const QModelIndex &index, int role) const
     case AutoRotateRole:
         return static_cast<uint32_t>(output->autoRotatePolicy());
     case RotationRole:
-        return output->rotation();
+        return unflipped(output->rotation());
+    case FlippedRole:
+        return isFlipped(output->rotation());
     case ScaleRole:
         return output->scale();
     case ResolutionIndexRole:
@@ -378,6 +419,11 @@ bool OutputModel::setData(const QModelIndex &index, const QVariant &value, int r
             return setRotation(index.row(), value.value<KScreen::Output::Rotation>());
         }
         break;
+    case FlippedRole:
+        if (value.canConvert<bool>()) {
+            return setFlipped(index.row(), value.toBool());
+        }
+        break;
     case ReplicationSourceIndexRole:
         if (value.canConvert<int>()) {
             return setReplicationSourceIndex(index.row(), value.toInt() - 1);
@@ -595,6 +641,7 @@ QHash<int, QByteArray> OutputModel::roleNames() const
     roles[NormalizedPositionRole] = "normalizedPosition";
     roles[AutoRotateRole] = "autoRotate";
     roles[RotationRole] = "rotation";
+    roles[FlippedRole] = "flipped";
     roles[ScaleRole] = "scale";
     roles[ResolutionIndexRole] = "resolutionIndex";
     roles[ResolutionsRole] = "resolutions";
@@ -958,6 +1005,24 @@ bool OutputModel::setRotation(int outputIndex, KScreen::Output::Rotation rotatio
     if (rotation != KScreen::Output::None && rotation != KScreen::Output::Left && rotation != KScreen::Output::Inverted && rotation != KScreen::Output::Right) {
         return false;
     }
+    // the turn is chosen apart from the mirroring, which it keeps
+    if (isFlipped(output.ptr->rotation())) {
+        rotation = flipped(rotation);
+    }
+    return applyRotation(outputIndex, rotation);
+}
+
+bool OutputModel::setFlipped(int outputIndex, bool flip)
+{
+    const Output &output = m_outputs[outputIndex];
+    const auto turn = unflipped(output.ptr->rotation());
+    return applyRotation(outputIndex, flip ? flipped(turn) : turn);
+}
+
+bool OutputModel::applyRotation(int outputIndex, KScreen::Output::Rotation rotation)
+{
+    const Output &output = m_outputs[outputIndex];
+
     if (output.ptr->rotation() == rotation) {
         return false;
     }
@@ -970,7 +1035,7 @@ bool OutputModel::setRotation(int outputIndex, KScreen::Output::Rotation rotatio
     maintainSnapping(output, oldSize, newSize);
 
     QModelIndex index = createIndex(outputIndex, 0);
-    Q_EMIT dataChanged(index, index, {RotationRole, SizeRole});
+    Q_EMIT dataChanged(index, index, {RotationRole, FlippedRole, SizeRole});
     Q_EMIT sizeChanged();
     return true;
 }
@@ -1311,13 +1376,7 @@ static KScreen::ModePtr getBestMode(const KScreen::OutputPtr &output, const KScr
     auto calculateAspectRatio = [](const auto &output, const auto &mode) {
         const qreal ratio = mode->size().width() / qreal(mode->size().height());
         const qreal ratioTransposed = mode->size().height() / qreal(mode->size().width());
-        switch (output->rotation()) {
-        case KScreen::Output::Left:
-        case KScreen::Output::Right:
-            return ratioTransposed;
-        default:
-            return ratio;
-        }
+        return output->isHorizontal() ? ratio : ratioTransposed;
     };
     const qreal sourceRatio = calculateAspectRatio(source, source->currentMode());
     // 1.1: Find modes with the same aspect ratio as the source output; if none, don't change the mode
@@ -1334,7 +1393,7 @@ static KScreen::ModePtr getBestMode(const KScreen::OutputPtr &output, const KScr
         return a->size().width() < b->size().width();
     });
     auto getRotatedSize = [](const auto &output, const auto &mode) {
-        if (output->rotation() == KScreen::Output::Left || output->rotation() == KScreen::Output::Right) {
+        if (!output->isHorizontal()) {
             return mode->size().transposed();
         }
         return mode->size();
@@ -1399,10 +1458,10 @@ bool OutputModel::setReplicationSourceIndex(int outputIndex, int sourceIndex)
             // Step 2: reposition and scale destination output to be centered inside the source output
             auto sourceSize = source->currentMode()->size();
             auto destinationSize = bestMode->size();
-            if (source->rotation() == KScreen::Output::Left || source->rotation() == KScreen::Output::Right) {
+            if (!source->isHorizontal()) {
                 sourceSize = sourceSize.transposed();
             }
-            if (output.ptr->rotation() == KScreen::Output::Left || output.ptr->rotation() == KScreen::Output::Right) {
+            if (!output.ptr->isHorizontal()) {
                 destinationSize = destinationSize.transposed();
             }
             qreal scale =

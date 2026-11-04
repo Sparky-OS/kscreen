@@ -93,6 +93,8 @@ public:
         StereoModesRole,
 #endif
         AbmLevelRole,
+        /** The output is mirrored before it is turned: the flipped transforms of Wayland's wl_output. */
+        FlippedRole,
     };
     Q_ENUM(OutputRoles)
 
@@ -184,6 +186,8 @@ private:
     bool setResolution(int outputIndex, int resIndex);
     bool setRefreshRate(int outputIndex, int refIndex);
     bool setRotation(int outputIndex, KScreen::Output::Rotation rotation);
+    bool setFlipped(int outputIndex, bool flipped);
+    bool applyRotation(int outputIndex, KScreen::Output::Rotation rotation);
 
     int resolutionIndex(const KScreen::OutputPtr &output) const;
     int refreshRateIndex(const KScreen::OutputPtr &output) const;

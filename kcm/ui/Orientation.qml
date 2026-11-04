@@ -82,4 +82,22 @@ ColumnLayout {
            value: 270
        }
     }
+
+    RowLayout {
+        enabled: orientation.enabled
+
+        QQC2.CheckBox {
+            objectName: "flipCheckBox"
+            text: i18nc("@option:check Mirror the picture of the screen from left to right", "Flip horizontally")
+            checked: element.flipped
+            onToggled: {
+                element.flipped = checked;
+                screen.resetTotalSize();
+            }
+        }
+
+        Kirigami.ContextualHelpButton {
+            toolTipText: i18nc("@info", "Mirrors the picture from left to right before the turn chosen above, as the flipped transforms of the Wayland output protocol do. For a mirror rig, a rear projector or a teleprompter.")
+        }
+    }
 }

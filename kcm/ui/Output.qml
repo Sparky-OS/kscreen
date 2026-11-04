@@ -111,6 +111,21 @@ Item {
         outputName: model.name
     }
 
+    // The screen shows its picture mirrored
+    Kirigami.Icon {
+        objectName: "flippedIndicator"
+        z: 1
+        anchors {
+            top: parent.top
+            right: parent.right
+            margins: Kirigami.Units.smallSpacing
+        }
+        width: Kirigami.Units.iconSizes.small
+        height: width
+        visible: model.flipped && parent.width > 4 * width
+        source: "object-flip-horizontal"
+    }
+
     Item {
         id: labelContainer
         anchors {
