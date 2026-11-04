@@ -95,6 +95,8 @@ public:
         AbmLevelRole,
         /** The output is mirrored before it is turned: the flipped transforms of Wayland's wl_output. */
         FlippedRole,
+        /** The size of the picture area in millimetres, as the display or KWin says it; not positive when unknown. */
+        PhysicalSizeRole,
     };
     Q_ENUM(OutputRoles)
 

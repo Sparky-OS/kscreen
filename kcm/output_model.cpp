@@ -107,6 +107,8 @@ QVariant OutputModel::data(const QModelIndex &index, int role) const
         return unflipped(output->rotation());
     case FlippedRole:
         return isFlipped(output->rotation());
+    case PhysicalSizeRole:
+        return output->sizeMm();
     case ScaleRole:
         return output->scale();
     case ResolutionIndexRole:
@@ -655,6 +657,7 @@ QHash<int, QByteArray> OutputModel::roleNames() const
     roles[AutoRotateRole] = "autoRotate";
     roles[RotationRole] = "rotation";
     roles[FlippedRole] = "flipped";
+    roles[PhysicalSizeRole] = "physicalSize";
     roles[ScaleRole] = "scale";
     roles[ResolutionIndexRole] = "resolutionIndex";
     roles[ResolutionsRole] = "resolutions";

@@ -280,6 +280,17 @@ Kirigami.FormLayout {
         }
     }
 
+    QQC2.Label {
+        id: physicalSizeLabel
+        objectName: "physicalSizeLabel"
+        Kirigami.FormData.label: i18nc("@label size of the screen in millimetres", "Physical size:")
+
+        readonly property size physicalSize: element.physicalSize
+        visible: physicalSize.width > 0 && physicalSize.height > 0
+        text: i18nc("@info width and height of the screen in millimetres, then its diagonal in inches", "%1 × %2 mm (%3″ diagonal)",
+                    physicalSize.width, physicalSize.height, (Math.hypot(physicalSize.width, physicalSize.height) / 25.4).toFixed(1))
+    }
+
     RowLayout {
         Layout.fillWidth: true
         // Set the same limit as the device ComboBox
