@@ -138,6 +138,57 @@ private Q_SLOTS:
         QCOMPARE(output->rotation(), KScreen::Output::Flipped90);
         QCOMPARE(model->data(row, role(model, "size")).toSize(), QSize(1080, 1920));
     }
+    void aScreenGoesWhereTheNumbersSay()
+    {
+        ConfigHandler handler;
+        Setup setup;
+        setup.outputs = 2;
+        auto first = configure(handler, setup);
+        auto model = handler.outputModel();
+        const int normalized = role(model, "normalizedPosition");
+        QVERIFY(normalized >= 0);
+        const auto positionOf = [&](int row) {
+            return model->data(model->index(row, 0), normalized).toPoint();
+        };
+        QCOMPARE(positionOf(0), QPoint(0, 0));
+        QCOMPARE(positionOf(1), QPoint(1920, 0));
+
+        QSignalSpy dirty(&handler, &ConfigHandler::needsSaveChecked);
+        bool done = false;
+        QVERIFY2(QMetaObject::invokeMethod(model, "setNormalizedPosition", Q_RETURN_ARG(bool, done), Q_ARG(int, 1), Q_ARG(QPoint, QPoint(1920, 200))),
+                 "no setNormalizedPosition method");
+        QVERIFY(done);
+        QCOMPARE(positionOf(1), QPoint(1920, 200));
+        QCOMPARE(positionOf(0), QPoint(0, 0));
+        QCOMPARE(handler.config()->outputs().value(2)->pos(), QPoint(1920, 200));
+        QVERIFY(!dirty.isEmpty());
+        QVERIFY(dirty.last().first().toBool());
+
+        // the numbers are exact: nothing snaps the screen back to the edge of the other
+        QVERIFY(QMetaObject::invokeMethod(model, "setNormalizedPosition", Q_RETURN_ARG(bool, done), Q_ARG(int, 1), Q_ARG(QPoint, QPoint(1925, 3))));
+        QCOMPARE(positionOf(1), QPoint(1925, 3));
+        QCOMPARE(first->pos(), QPoint(0, 0));
+
+        // the place it already has is no change
+        QVERIFY(QMetaObject::invokeMethod(model, "setNormalizedPosition", Q_RETURN_ARG(bool, done), Q_ARG(int, 1), Q_ARG(QPoint, QPoint(1925, 3))));
+        QVERIFY(!done);
+    }
+
+    void positionsAreCountedFromTheTopLeftOfAllScreens()
+    {
+        ConfigHandler handler;
+        Setup setup;
+        setup.outputs = 2;
+        configure(handler, setup);
+        auto model = handler.outputModel();
+        const int normalized = role(model, "normalizedPosition");
+        bool done = false;
+        // left of the other screen: the arrangement is counted from its new top left corner
+        QVERIFY(QMetaObject::invokeMethod(model, "setNormalizedPosition", Q_RETURN_ARG(bool, done), Q_ARG(int, 1), Q_ARG(QPoint, QPoint(-100, -50))));
+        QVERIFY(done);
+        QCOMPARE(model->data(model->index(1, 0), normalized).toPoint(), QPoint(0, 0));
+        QCOMPARE(model->data(model->index(0, 0), normalized).toPoint(), QPoint(100, 50));
+    }
 };
 
 QTEST_MAIN(OutputMenusTest)

@@ -66,6 +66,7 @@ private Q_SLOTS:
     void testScreenContentsRefused();
     void testScreenContentsShowOneEye();
     void testFlipReachesKWin();
+    void testPositionFieldsReachKWin();
 
 private:
     struct Screen {
@@ -89,6 +90,7 @@ private:
     QVariant modelValue(int row, const char *role) const;
     QJsonObject doctorOutput(const QString &name) const;
     void activate(QObject *control);
+    void type(const QString &text);
     void apply();
 
     KQuickConfigModule *m_module = nullptr;
@@ -365,6 +367,13 @@ void ArrangementViewTest::activate(QObject *control)
     QTest::qWait(100);
 }
 
+void ArrangementViewTest::type(const QString &text)
+{
+    for (const QChar character : text) {
+        QTest::keyClick(m_window.get(), character.toLatin1());
+    }
+}
+
 // Applies what the page holds to the compositor, and waits for the page to take KWin's answer
 void ArrangementViewTest::apply()
 {
@@ -428,6 +437,50 @@ void ArrangementViewTest::testFlipReachesKWin()
     QCOMPARE(modelValue(row, "flipped").toBool(), false);
     apply();
     QTRY_COMPARE_WITH_TIMEOUT(doctorOutput(name).value(u"rotation"_s).toInt(), 1, 10000);
+}
+
+void ArrangementViewTest::testPositionFieldsReachKWin()
+{
+    QObject *xField = findObject(u"positionXField"_s);
+    QObject *yField = findObject(u"positionYField"_s);
+    QVERIFY2(xField && yField, "no X and Y fields for the position of the screen");
+    const QString name = evaluate(qobject_cast<QQuickItem *>(xField), u"element.name"_s).toString();
+    int row = -1;
+    for (const Screen &screen : screens()) {
+        if (screen.name == name) {
+            row = screen.row;
+        }
+    }
+    QVERIFY(row >= 0);
+    // the fields hold the coordinates KWin holds
+    const QJsonObject before = doctorOutput(name).value(u"pos"_s).toObject();
+    QCOMPARE(xField->property("value").toInt(), before.value(u"x"_s).toInt());
+    QCOMPARE(yField->property("value").toInt(), before.value(u"y"_s).toInt());
+
+    // type 120 into Y
+    auto *item = qobject_cast<QQuickItem *>(yField);
+    item->forceActiveFocus(Qt::TabFocusReason);
+    QTest::keyClick(m_window.get(), Qt::Key_A, Qt::ControlModifier);
+    type(u"120"_s);
+    QTest::keyClick(m_window.get(), Qt::Key_Return);
+    QTest::qWait(100);
+    QCOMPARE(modelValue(row, "normalizedPosition").toPoint().y(), 120);
+    capture(u"position-typed"_s, QJsonObject{{u"moved"_s, name}, {u"y"_s, 120}});
+    apply();
+    QTRY_COMPARE_WITH_TIMEOUT(doctorOutput(name).value(u"pos"_s).toObject().value(u"y"_s).toInt(), 120, 10000);
+    QCOMPARE(doctorOutput(name).value(u"pos"_s).toObject().value(u"x"_s).toInt(), before.value(u"x"_s).toInt());
+
+    reload();
+    yField = findObject(u"positionYField"_s);
+    QCOMPARE(yField->property("value").toInt(), 120);
+    item = qobject_cast<QQuickItem *>(yField);
+    item->forceActiveFocus(Qt::TabFocusReason);
+    QTest::keyClick(m_window.get(), Qt::Key_A, Qt::ControlModifier);
+    type(QString::number(before.value(u"y"_s).toInt()));
+    QTest::keyClick(m_window.get(), Qt::Key_Return);
+    QTest::qWait(100);
+    apply();
+    QTRY_COMPARE_WITH_TIMEOUT(doctorOutput(name).value(u"pos"_s).toObject().value(u"y"_s).toInt(), before.value(u"y"_s).toInt(), 10000);
 }
 
 void ArrangementViewTest::testScreenContentsFollowBattery()
