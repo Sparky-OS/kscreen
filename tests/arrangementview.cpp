@@ -42,6 +42,7 @@
 #include <QQuickItem>
 #include <QProcess>
 #include <QQuickWindow>
+#include <QRegularExpression>
 #include <QTest>
 #include <QTimer>
 #include <QWheelEvent>
@@ -77,6 +78,7 @@ private Q_SLOTS:
     void testCustomModeReachesKWin();
     void testScreenNamesOverlay();
     void testPlainWheelPansWhenChosen();
+    void testZoomPercentage();
 
 private:
     struct Screen {
@@ -744,6 +746,47 @@ void ArrangementViewTest::testPlainWheelPansWhenChosen()
     for (int i = 0; i < still.size(); ++i) {
         QCOMPARE(after[i].rect.topLeft(), still[i].rect.topLeft());
     }
+}
+
+void ArrangementViewTest::testZoomPercentage()
+{
+    // The view says how large the screens are drawn: the percentage of their real size in pixels
+    QObject *label = findObject(u"zoomPercentLabel"_s);
+    QVERIFY2(label, "no zoom percentage in the arrangement view");
+    const auto percentShown = [label]() {
+        const QString text = label->property("text").toString();
+        QRegularExpression number(u"(\\d+(?:[.,]\\d+)?)\\s*%"_s);
+        const auto match = number.match(text);
+        return match.hasMatch() ? match.captured(1).replace(u',', u'.').toDouble() : -1.0;
+    };
+    // What is drawn, measured on the first screen: drawn width over its real width
+    const auto percentDrawn = [this]() {
+        const Screen screen = screens().first();
+        const QSize size = evaluate(screen.item, u"model.size"_s).toSize();
+        return screen.rect.width() / size.width() * 100.0;
+    };
+
+    QVERIFY(label->property("visible").toBool());
+    QVERIFY2(std::abs(percentShown() - percentDrawn()) <= 1.0,
+             qPrintable(u"the label says %1, the screens are drawn at %2"_s.arg(percentShown()).arg(percentDrawn())));
+    capture(u"zoom-percent-fit"_s, QJsonObject{{u"percent"_s, percentShown()}});
+    const double fitted = percentShown();
+
+    QObject *zoomIn = findObject(u"zoomInAction"_s);
+    QVERIFY(zoomIn);
+    QMetaObject::invokeMethod(zoomIn, "trigger");
+    QTest::qWait(100);
+    QVERIFY2(std::abs(percentShown() - fitted * 1.25) <= 1.0, qPrintable(u"%1 after a step, expected %2"_s.arg(percentShown()).arg(fitted * 1.25)));
+    QVERIFY2(std::abs(percentShown() - percentDrawn()) <= 1.0, qPrintable(u"the label says %1, the screens are drawn at %2"_s.arg(percentShown()).arg(percentDrawn())));
+    capture(u"zoom-percent-zoomed"_s, QJsonObject{{u"percent"_s, percentShown()}});
+
+    wheel(emptyPoint(), 120, Qt::ControlModifier);
+    QVERIFY(std::abs(percentShown() - percentDrawn()) <= 1.0);
+
+    QObject *fitAll = findObject(u"fitAllAction"_s);
+    QMetaObject::invokeMethod(fitAll, "trigger");
+    QTest::qWait(100);
+    QVERIFY(std::abs(percentShown() - fitted) <= 1.0);
 }
 
 void ArrangementViewTest::testScreenContentsFollowBattery()
