@@ -97,6 +97,8 @@ public:
         FlippedRole,
         /** The size of the picture area in millimetres, as the display or KWin says it; not positive when unknown. */
         PhysicalSizeRole,
+        /** The custom modes of the output, as the lines of a list: width, height and refresh rate. */
+        CustomModesRole,
     };
     Q_ENUM(OutputRoles)
 
@@ -128,6 +130,15 @@ public:
      * the positions KWin holds, without snapping. The arrangement is counted from its new corner after.
      */
     Q_INVOKABLE bool setNormalizedPosition(int outputIndex, const QPoint &position);
+
+    /**
+     * Asks the compositor for a custom mode of the output when the configuration is applied: the mode
+     * of the given size and refresh rate in Hz, with reduced blanking timings if wanted. Only an output
+     * with Capability::CustomModes takes one, and a custom mode that is already there is no new one.
+     */
+    Q_INVOKABLE bool addCustomMode(int outputIndex, int width, int height, double refreshRate, bool reducedBlanking);
+    /** Drops the custom mode at the given place of the output's list of custom modes. */
+    Q_INVOKABLE bool removeCustomMode(int outputIndex, int index);
 
 Q_SIGNALS:
     void positionChanged();

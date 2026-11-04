@@ -6,6 +6,8 @@
 */
 #include "output_model.h"
 
+#include <algorithm>
+#include <cmath>
 #include <cstdint>
 
 #include <kscreen/edid.h>
@@ -59,6 +61,24 @@ static KScreen::Output::Rotation flipped(KScreen::Output::Rotation rotation)
     }
 }
 
+static QString customModeLabel(const KScreen::ModeInfo &info)
+{
+    const QString mode = i18nc("@item:inlistbox Width, height and refresh rate of a custom mode", "%1 × %2 at %3 Hz",
+                               QString::number(info.size.width()), QString::number(info.size.height()), QString::number(info.refreshRate, 'f', 2));
+    if (info.flags & KScreen::ModeInfo::Flag::ReducedBlanking) {
+        return i18nc("@item:inlistbox A custom mode, and that it uses reduced blanking timings", "%1, reduced blanking", mode);
+    }
+    return mode;
+}
+
+// The compositor makes a mode with the nearest timings it can, so a refresh rate asked for and the one
+// it makes differ by a fraction of a hertz
+static constexpr float s_sameRefreshRate = 0.5;
+static constexpr int s_minimumCustomModeSize = 64;
+static constexpr int s_maximumCustomModeSize = 16384;
+static constexpr double s_minimumCustomModeRefreshRate = 1;
+static constexpr double s_maximumCustomModeRefreshRate = 1000;
+
 OutputModel::OutputModel(ConfigHandler *configHandler)
     : QAbstractListModel(configHandler)
     , m_config(configHandler)
@@ -109,6 +129,14 @@ QVariant OutputModel::data(const QModelIndex &index, int role) const
         return isFlipped(output->rotation());
     case PhysicalSizeRole:
         return output->sizeMm();
+    case CustomModesRole: {
+        QStringList labels;
+        const auto customModes = output->customModes();
+        for (const auto &info : customModes) {
+            labels << customModeLabel(info);
+        }
+        return labels;
+    }
     case ScaleRole:
         return output->scale();
     case ResolutionIndexRole:
@@ -360,6 +388,62 @@ bool OutputModel::setPosition(int outputIndex, const QPoint &valToPoint, bool sn
     Q_EMIT positionChanged();
     const QModelIndex index = createIndex(outputIndex, 0);
     Q_EMIT dataChanged(index, index, {PositionRole});
+    return true;
+}
+
+bool OutputModel::addCustomMode(int outputIndex, int width, int height, double refreshRate, bool reducedBlanking)
+{
+    if (outputIndex < 0 || outputIndex >= m_outputs.count()) {
+        return false;
+    }
+    const KScreen::OutputPtr &output = m_outputs[outputIndex].ptr;
+    if (!(output->capabilities() & KScreen::Output::Capability::CustomModes)) {
+        return false;
+    }
+    if (width < s_minimumCustomModeSize || width > s_maximumCustomModeSize || height < s_minimumCustomModeSize || height > s_maximumCustomModeSize
+        || refreshRate < s_minimumCustomModeRefreshRate || refreshRate > s_maximumCustomModeRefreshRate) {
+        return false;
+    }
+
+    auto modes = output->customModes();
+    const QSize size(width, height);
+    const bool known = std::ranges::any_of(modes, [&](const KScreen::ModeInfo &info) {
+        return info.size == size && std::abs(info.refreshRate - refreshRate) < s_sameRefreshRate;
+    });
+    if (known) {
+        return false;
+    }
+    KScreen::ModeInfo::Flags flags = KScreen::ModeInfo::Flag::Custom;
+    if (reducedBlanking) {
+        flags |= KScreen::ModeInfo::Flag::ReducedBlanking;
+    }
+    modes.push_back(KScreen::ModeInfo{
+        .size = size,
+        .refreshRate = float(refreshRate),
+        .flags = flags,
+    });
+    output->setCustomModes(modes);
+
+    const QModelIndex index = createIndex(outputIndex, 0);
+    Q_EMIT dataChanged(index, index, {CustomModesRole});
+    return true;
+}
+
+bool OutputModel::removeCustomMode(int outputIndex, int modeIndex)
+{
+    if (outputIndex < 0 || outputIndex >= m_outputs.count()) {
+        return false;
+    }
+    const KScreen::OutputPtr &output = m_outputs[outputIndex].ptr;
+    auto modes = output->customModes();
+    if (modeIndex < 0 || modeIndex >= modes.size()) {
+        return false;
+    }
+    modes.erase(modes.begin() + modeIndex);
+    output->setCustomModes(modes);
+
+    const QModelIndex index = createIndex(outputIndex, 0);
+    Q_EMIT dataChanged(index, index, {CustomModesRole});
     return true;
 }
 
@@ -658,6 +742,7 @@ QHash<int, QByteArray> OutputModel::roleNames() const
     roles[RotationRole] = "rotation";
     roles[FlippedRole] = "flipped";
     roles[PhysicalSizeRole] = "physicalSize";
+    roles[CustomModesRole] = "customModes";
     roles[ScaleRole] = "scale";
     roles[ResolutionIndexRole] = "resolutionIndex";
     roles[ResolutionsRole] = "resolutions";

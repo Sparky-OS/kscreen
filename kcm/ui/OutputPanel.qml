@@ -409,6 +409,121 @@ Kirigami.FormLayout {
         }
     }
 
+    ColumnLayout {
+        id: customModes
+
+        Kirigami.FormData.label: i18nc("@label modes the person adds for the screen", "Custom modes:")
+        Kirigami.FormData.labelAlignment: Qt.AlignTop
+        Kirigami.FormData.buddyFor: customModesToggle
+
+        visible: element.enabled && (element.capabilities & KScreen.Output.Capability.CustomModes) && element.replicationSourceIndex === 0
+
+        QQC2.CheckBox {
+            id: customModesToggle
+            objectName: "customModesToggle"
+            text: i18nc("@option:check Show the custom modes of the screen and the fields to add one", "Add or remove custom modes")
+        }
+
+        ColumnLayout {
+            visible: customModesToggle.checked
+
+            QQC2.Label {
+                visible: element.customModes.length === 0
+                text: i18nc("@info:placeholder", "No custom modes")
+                font: Kirigami.Theme.smallFont
+            }
+
+            Repeater {
+                model: element.customModes
+
+                RowLayout {
+                    required property string modelData
+                    required property int index
+
+                    QQC2.Label {
+                        text: parent.modelData
+                    }
+                    QQC2.ToolButton {
+                        objectName: "customModeRemoveButton"
+                        icon.name: "list-remove"
+                        text: i18nc("@action:button Remove this custom mode", "Remove")
+                        display: QQC2.AbstractButton.IconOnly
+                        Accessible.name: i18nc("@action:button %1 is a custom mode", "Remove %1", parent.modelData)
+                        QQC2.ToolTip.text: text
+                        QQC2.ToolTip.visible: hovered
+                        onClicked: kcm.outputModel.sourceModel.removeCustomMode(element.index, parent.index)
+                    }
+                }
+            }
+
+            RowLayout {
+                QQC2.SpinBox {
+                    id: customModeWidth
+                    objectName: "customModeWidthField"
+                    Layout.maximumWidth: root.maxSpinboxWidth
+                    from: 64
+                    to: 16384
+                    value: 1920
+                    editable: true
+                    Accessible.name: i18nc("@label width of a custom mode in pixels", "Width")
+                }
+                QQC2.Label {
+                    text: i18nc("@label between the width and the height of a custom mode", "×")
+                }
+                QQC2.SpinBox {
+                    id: customModeHeight
+                    objectName: "customModeHeightField"
+                    Layout.maximumWidth: root.maxSpinboxWidth
+                    from: 64
+                    to: 16384
+                    value: 1080
+                    editable: true
+                    Accessible.name: i18nc("@label height of a custom mode in pixels", "Height")
+                }
+                QQC2.Label {
+                    text: i18nc("@label between the height and the refresh rate of a custom mode", "at")
+                }
+                QQC2.TextField {
+                    id: customModeRefresh
+                    objectName: "customModeRefreshField"
+                    // The refresh rate in hertz, with fractions: 59.94
+                    readonly property real realValue: acceptableInput ? Number.fromLocaleString(Qt.locale(), text) : 0
+                    Layout.preferredWidth: root.maxSpinboxWidth
+                    text: Number(60).toLocaleString(Qt.locale(), 'f', 2)
+                    inputMethodHints: Qt.ImhFormattedNumbersOnly
+                    validator: DoubleValidator {
+                        bottom: 1
+                        top: 1000
+                        decimals: 3
+                        notation: DoubleValidator.StandardNotation
+                    }
+                    Accessible.name: i18nc("@label refresh rate of a custom mode in hertz", "Refresh rate")
+                }
+                QQC2.Label {
+                    text: i18nc("@label unit of the refresh rate of a custom mode", "Hz")
+                }
+            }
+
+            RowLayout {
+                QQC2.CheckBox {
+                    id: customModeReducedBlanking
+                    objectName: "customModeReducedBlankingBox"
+                    text: i18nc("@option:check Use reduced blanking timings for the new mode", "Reduced blanking")
+                }
+                Kirigami.ContextualHelpButton {
+                    toolTipText: i18nc("@info", "Shorter blanking intervals, for a mode the display takes at a higher refresh rate than the usual timings allow. The compositor makes the timings of the mode when the settings are applied, and the mode then shows under Resolution.")
+                }
+                QQC2.Button {
+                    objectName: "customModeAddButton"
+                    text: i18nc("@action:button Add the custom mode written in the fields", "Add")
+                    icon.name: "list-add"
+                    enabled: customModeRefresh.acceptableInput
+                    onClicked: kcm.outputModel.sourceModel.addCustomMode(element.index, customModeWidth.value, customModeHeight.value, customModeRefresh.realValue, customModeReducedBlanking.checked)
+                }
+            }
+        }
+    }
+
     QQC2.ComboBox {
         Kirigami.FormData.label: i18n("Adaptive sync:")
         Layout.minimumWidth: root.comboboxWidth
