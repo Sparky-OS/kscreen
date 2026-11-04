@@ -54,3 +54,10 @@ if(HAVE_KSCREEN_STEREO_SEQUENTIAL_DISPLAYPORT)
         LINK_LIBRARIES Qt6::Test Qt6::Gui Qt6::DBus KF6::Screen KF6::I18n KF6::ConfigCore KF6::CoreAddons kscreen_common)
     target_include_directories(sequentialdisplayport PRIVATE ${CMAKE_BINARY_DIR}/kcm)
 endif()
+
+ecm_add_test(outputmenus.cpp
+    ../kcm/output_model.cpp ../kcm/config_handler.cpp
+    ${CMAKE_BINARY_DIR}/kcm/kcm_screen_debug.cpp
+    TEST_NAME outputmenus
+    LINK_LIBRARIES Qt6::Test Qt6::Gui Qt6::DBus KF6::Screen KF6::I18n KF6::ConfigCore KF6::CoreAddons kscreen_common)
+target_include_directories(outputmenus PRIVATE ${CMAKE_BINARY_DIR}/kcm)

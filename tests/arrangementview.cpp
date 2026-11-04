@@ -34,6 +34,7 @@
 #include <QQmlEngine>
 #include <QQmlExpression>
 #include <QQuickItem>
+#include <QProcess>
 #include <QQuickWindow>
 #include <QTest>
 #include <QTimer>
@@ -64,6 +65,7 @@ private Q_SLOTS:
     void testScreenContentsShown();
     void testScreenContentsRefused();
     void testScreenContentsShowOneEye();
+    void testFlipReachesKWin();
 
 private:
     struct Screen {
@@ -84,6 +86,10 @@ private:
     void wheel(QPointF at, int angle, Qt::KeyboardModifiers modifiers);
     void capture(const QString &name, const QJsonObject &expectation = {});
     void reload();
+    QVariant modelValue(int row, const char *role) const;
+    QJsonObject doctorOutput(const QString &name) const;
+    void activate(QObject *control);
+    void apply();
 
     KQuickConfigModule *m_module = nullptr;
     std::unique_ptr<QQuickWindow> m_window;
@@ -241,7 +247,13 @@ QPoint ArrangementViewTest::modelPosition(int row) const
 
 QObject *ArrangementViewTest::findObject(const QString &objectName) const
 {
-    return m_module->mainUi()->findChild<QObject *>(objectName);
+    if (QObject *object = m_module->mainUi()->findChild<QObject *>(objectName)) {
+        return object;
+    }
+    // Controls made by a Loader or a delegate hang from the scene, not from the QObject tree
+    return findItem(m_module->mainUi(), [&objectName](QQuickItem *item) {
+        return item->objectName() == objectName;
+    });
 }
 
 QPointF ArrangementViewTest::emptyPoint() const
@@ -319,6 +331,47 @@ void ArrangementViewTest::capture(const QString &name, const QJsonObject &expect
     file.write(QJsonDocument(record).toJson());
 }
 
+QVariant ArrangementViewTest::modelValue(int row, const char *role) const
+{
+    auto model = m_module->property("outputModel").value<QAbstractItemModel *>();
+    return model->data(model->index(row, 0), model->roleNames().key(role));
+}
+
+// What KWin holds for an output, as kscreen-doctor reads it from the compositor
+QJsonObject ArrangementViewTest::doctorOutput(const QString &name) const
+{
+    QProcess doctor;
+    doctor.start(u"kscreen-doctor"_s, {u"-j"_s});
+    if (!doctor.waitForFinished(15000)) {
+        return {};
+    }
+    const QJsonDocument document = QJsonDocument::fromJson(doctor.readAllStandardOutput());
+    const QJsonArray outputs = document.object().value(u"outputs"_s).toArray();
+    for (const QJsonValue &value : outputs) {
+        if (value.toObject().value(u"name"_s).toString() == name) {
+            return value.toObject();
+        }
+    }
+    return {};
+}
+
+// Operates a control with the keyboard, as a person would
+void ArrangementViewTest::activate(QObject *control)
+{
+    auto *item = qobject_cast<QQuickItem *>(control);
+    QVERIFY(item);
+    item->forceActiveFocus(Qt::TabFocusReason);
+    QTest::keyClick(m_window.get(), Qt::Key_Space);
+    QTest::qWait(100);
+}
+
+// Applies what the page holds to the compositor, and waits for the page to take KWin's answer
+void ArrangementViewTest::apply()
+{
+    m_module->save();
+    QTest::qWait(500);
+}
+
 void ArrangementViewTest::testViewMenuHoldsItsItems()
 {
     // Zoom In, Zoom Out, Fit All, a separator and Show Screen Contents are the menu's own items,
@@ -331,6 +384,50 @@ void ArrangementViewTest::testViewMenuHoldsItsItems()
     QVERIFY2(menu, "Show Screen Contents is not an item of the View menu");
     const int count = menu->property("count").toInt();
     QVERIFY2(count >= 5, qPrintable(u"the View menu holds %1 items"_s.arg(count)));
+}
+
+void ArrangementViewTest::testFlipReachesKWin()
+{
+    QObject *flip = findObject(u"flipCheckBox"_s);
+    QVERIFY2(flip, "no flip control in the orientation settings");
+    const QString name = evaluate(qobject_cast<QQuickItem *>(flip), u"element.name"_s).toString();
+    QVERIFY(!name.isEmpty());
+    int row = -1;
+    for (const Screen &screen : screens()) {
+        if (screen.name == name) {
+            row = screen.row;
+        }
+    }
+    QVERIFY(row >= 0);
+    QCOMPARE(doctorOutput(name).value(u"rotation"_s).toInt(), 1);
+
+    activate(flip);
+    QCOMPARE(modelValue(row, "flipped").toBool(), true);
+    // the screen in the view says so
+    QList<QQuickItem *> indicators;
+    findItems(m_view, [](QQuickItem *item) {
+        return item->objectName() == u"flippedIndicator"_s;
+    }, indicators);
+    int shown = 0;
+    for (QQuickItem *indicator : indicators) {
+        shown += indicator->isVisible() ? 1 : 0;
+    }
+    QCOMPARE(shown, 1);
+    capture(u"flipped-screen"_s, QJsonObject{{u"flipped"_s, name}});
+    apply();
+    QTRY_COMPARE_WITH_TIMEOUT(doctorOutput(name).value(u"rotation"_s).toInt(), 16, 10000);
+
+    // turning the screen keeps the mirroring
+    reload();
+    flip = findObject(u"flipCheckBox"_s);
+    QVERIFY(flip);
+    QCOMPARE(flip->property("checked").toBool(), true);
+    QCOMPARE(modelValue(row, "rotation").toInt(), 1);
+
+    activate(flip);
+    QCOMPARE(modelValue(row, "flipped").toBool(), false);
+    apply();
+    QTRY_COMPARE_WITH_TIMEOUT(doctorOutput(name).value(u"rotation"_s).toInt(), 1, 10000);
 }
 
 void ArrangementViewTest::testScreenContentsFollowBattery()
