@@ -73,6 +73,7 @@ private Q_SLOTS:
     void testScreenContentsRefused();
     void testScreenContentsShowOneEye();
     void testScreenNamesOverlay();
+    void testScreenNamesSaysWhenKWinCannot();
     void testFlipReachesKWin();
     void testPositionFieldsReachKWin();
     void testPhysicalSizeShown();
@@ -417,6 +418,46 @@ void ArrangementViewTest::testViewMenuHoldsItsItems()
     QVERIFY2(menu, "Show Screen Contents is not an item of the View menu");
     const int count = menu->property("count").toInt();
     QVERIFY2(count >= 5, qPrintable(u"the View menu holds %1 items"_s.arg(count)));
+}
+
+void ArrangementViewTest::testScreenNamesSaysWhenKWinCannot()
+{
+    // Without KWin's OutputLocator effect nothing can show the names: the view says so, instead of
+    // showing nothing as if it had worked
+    if (qEnvironmentVariableIsEmpty("KSCREEN_TEST_CAPTURE_TOOL")) {
+        QSKIP("Needs a compositor whose effects the test may unload: set KSCREEN_TEST_CAPTURE_TOOL");
+    }
+    QObject *action = findObject(u"showScreenNamesAction"_s);
+    QVERIFY2(action, "no Show Screen Names action in the arrangement view's menu");
+    QObject *options = m_module->property("viewOptions").value<QObject *>();
+    QVERIFY2(options, "no view options");
+    QVERIFY(options->property("errorString").isValid());
+
+    const auto effect = [](const char *method) {
+        QDBusMessage message = QDBusMessage::createMethodCall(u"org.kde.KWin"_s, u"/Effects"_s, u"org.kde.kwin.Effects"_s, QString::fromLatin1(method));
+        message << u"outputlocator"_s;
+        return QDBusConnection::sessionBus().call(message);
+    };
+    QCOMPARE(effect("unloadEffect").type(), QDBusMessage::ReplyMessage);
+
+    QMetaObject::invokeMethod(action, "trigger");
+    QVERIFY(action->property("checked").toBool());
+    QTRY_VERIFY_WITH_TIMEOUT(!options->property("errorString").toString().isEmpty(), 5000);
+    QObject *label = findObject(u"screenNamesErrorLabel"_s);
+    QVERIFY2(label, "the view does not say why the names are not shown");
+    QVERIFY(qobject_cast<QQuickItem *>(label)->isVisible());
+    QVERIFY(label->property("text").toString().contains(options->property("errorString").toString()));
+    capture(u"names-refused"_s, QJsonObject{{u"error"_s, options->property("errorString").toString()}});
+
+    // switched off, nothing to say; and with the effect back the names show again
+    QMetaObject::invokeMethod(action, "trigger");
+    QVERIFY(options->property("errorString").toString().isEmpty());
+    QCOMPARE(effect("loadEffect").type(), QDBusMessage::ReplyMessage);
+    QMetaObject::invokeMethod(action, "trigger");
+    QTest::qWait(3000);
+    QVERIFY2(options->property("errorString").toString().isEmpty(), qPrintable(options->property("errorString").toString()));
+    QMetaObject::invokeMethod(action, "trigger");
+    QVERIFY(!action->property("checked").toBool());
 }
 
 void ArrangementViewTest::testFlipReachesKWin()
