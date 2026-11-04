@@ -15,11 +15,14 @@
 // KSCREEN_TEST_UPOWER_MOCK: set when a python-dbusmock UPower runs on the system bus
 // KSCREEN_TEST_EXPECT_REFUSAL: set when the compositor refuses the KCM's captures
 // KSCREEN_TEST_STEREO_SCREEN: a screen in a side by side 3D mode that shows red on its left half and blue on its right
+// KSCREEN_TEST_CAPTURE_TOOL: a program that writes a screen of the compositor to a picture: TOOL OUT.png SCREEN_NAME
 // KSCREEN_TEST_FAKE_CONFIG: a libkscreen fake backend file to load instead of a compositor's screens (with KSCREEN_BACKEND=Fake and KSCREEN_BACKEND_INPROCESS=1)
 
 #include <KPluginMetaData>
 #include <KQuickConfigModule>
+#include <KConfigGroup>
 #include <KQuickConfigModuleLoader>
+#include <KSharedConfig>
 
 #include <kscreen/backendmanager_p.h>
 
@@ -72,6 +75,7 @@ private Q_SLOTS:
     void testPositionFieldsReachKWin();
     void testPhysicalSizeShown();
     void testCustomModeReachesKWin();
+    void testScreenNamesOverlay();
 
 private:
     struct Screen {
@@ -588,6 +592,78 @@ void ArrangementViewTest::testCustomModeReachesKWin()
     QCOMPARE(modelValue(row, "customModes").toStringList().size(), 0);
     apply();
     QTRY_VERIFY_WITH_TIMEOUT(!hasMode(doctorOutput(name), custom), 10000);
+}
+
+// How many pixels of a screen of the compositor differ from its one colour, and the box they lie in
+static int differingPixels(const QImage &image, const QColor &base, QRect *box)
+{
+    int count = 0;
+    int left = image.width();
+    int top = image.height();
+    int right = -1;
+    int bottom = -1;
+    for (int y = 0; y < image.height(); ++y) {
+        for (int x = 0; x < image.width(); ++x) {
+            const QColor color = image.pixelColor(x, y);
+            if (std::abs(color.red() - base.red()) + std::abs(color.green() - base.green()) + std::abs(color.blue() - base.blue()) > 60) {
+                ++count;
+                left = std::min(left, x);
+                top = std::min(top, y);
+                right = std::max(right, x);
+                bottom = std::max(bottom, y);
+            }
+        }
+    }
+    *box = count ? QRect(QPoint(left, top), QPoint(right, bottom)) : QRect();
+    return count;
+}
+
+void ArrangementViewTest::testScreenNamesOverlay()
+{
+    // With Show Screen Names on, each screen carries the label of Identify Screens as long as the view is open
+    const QString tool = qEnvironmentVariable("KSCREEN_TEST_CAPTURE_TOOL");
+    if (tool.isEmpty() || m_captureDir.isEmpty() || m_screenColors.isEmpty()) {
+        QSKIP("Needs the compositor's screens in plain colours and a capture tool: set KSCREEN_TEST_CAPTURE_TOOL, KSCREEN_TEST_CAPTURE_DIR and KSCREEN_TEST_SCREEN_COLORS");
+    }
+    QObject *action = findObject(u"showScreenNamesAction"_s);
+    QVERIFY2(action, "no Show Screen Names action in the arrangement view's menu");
+    QVERIFY(!action->property("checked").toBool());
+    const QString name = m_screenColors.constBegin().key();
+    const QColor base = m_screenColors.value(name);
+
+    const auto look = [&](const QString &file, QRect *box) {
+        QProcess process;
+        const QString path = m_captureDir + u'/' + file;
+        process.start(u"python3"_s, {u"-I"_s, tool, path, name});
+        if (!process.waitForFinished(20000)) {
+            return -1;
+        }
+        return differingPixels(QImage(path), base, box);
+    };
+
+    QRect box;
+    QCOMPARE(look(u"names-off.png"_s, &box), 0);
+
+    QMetaObject::invokeMethod(action, "trigger");
+    QVERIFY(action->property("checked").toBool());
+    // the choice is kept
+    KSharedConfig::openConfig(u"kcm_kscreenrc"_s)->reparseConfiguration();
+    QVERIFY(KSharedConfig::openConfig(u"kcm_kscreenrc"_s)->group(u"ArrangementView"_s).readEntry("ShowScreenNames", false));
+
+    QTRY_VERIFY_WITH_TIMEOUT(look(u"names-on.png"_s, &box) > 2000, 10000);
+    const QImage image(m_captureDir + u"/names-on.png"_s);
+    QVERIFY2(std::abs(box.center().x() - image.width() / 2) < image.width() / 6 && std::abs(box.center().y() - image.height() / 2) < image.height() / 6,
+             qPrintable(u"the label is at %1,%2,%3x%4"_s.arg(box.x()).arg(box.y()).arg(box.width()).arg(box.height())));
+
+    // KWin's own label goes after two and a half seconds: the view keeps it up
+    QTest::qWait(5000);
+    QVERIFY(look(u"names-on-later.png"_s, &box) > 2000);
+
+    QMetaObject::invokeMethod(action, "trigger");
+    QVERIFY(!action->property("checked").toBool());
+    QTRY_COMPARE_WITH_TIMEOUT(look(u"names-off-again.png"_s, &box), 0, 10000);
+    KSharedConfig::openConfig(u"kcm_kscreenrc"_s)->reparseConfiguration();
+    QVERIFY(!KSharedConfig::openConfig(u"kcm_kscreenrc"_s)->group(u"ArrangementView"_s).readEntry("ShowScreenNames", true));
 }
 
 void ArrangementViewTest::testScreenContentsFollowBattery()
