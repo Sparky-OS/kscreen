@@ -71,6 +71,7 @@ private Q_SLOTS:
     void testFlipReachesKWin();
     void testPositionFieldsReachKWin();
     void testPhysicalSizeShown();
+    void testCustomModeReachesKWin();
 
 private:
     struct Screen {
@@ -521,6 +522,72 @@ void ArrangementViewTest::testPhysicalSizeShown()
     const double inches = std::hypot(size.width(), size.height()) / 25.4;
     QVERIFY2(text.contains(QString::number(inches, 'f', 1)), qPrintable(text + u" lacks "_s + QString::number(inches, 'f', 1)));
     capture(u"physical-size"_s, QJsonObject{{u"screen"_s, name}, {u"size"_s, expected}});
+}
+
+static bool hasMode(const QJsonObject &output, const QSize &size)
+{
+    const QJsonArray modes = output.value(u"modes"_s).toArray();
+    return std::any_of(modes.cbegin(), modes.cend(), [&size](const QJsonValue &mode) {
+        const QJsonObject modeSize = mode.toObject().value(u"size"_s).toObject();
+        return modeSize.value(u"width"_s).toInt() == size.width() && modeSize.value(u"height"_s).toInt() == size.height();
+    });
+}
+
+void ArrangementViewTest::testCustomModeReachesKWin()
+{
+    QObject *toggle = findObject(u"customModesToggle"_s);
+    QVERIFY2(toggle, "no custom modes in the settings of the screen");
+    const QString name = evaluate(qobject_cast<QQuickItem *>(toggle), u"element.name"_s).toString();
+    int row = -1;
+    for (const Screen &screen : screens()) {
+        if (screen.name == name) {
+            row = screen.row;
+        }
+    }
+    QVERIFY(row >= 0);
+    const QSize custom(1000, 700);
+    QVERIFY2(!hasMode(doctorOutput(name), custom), "the screen has a mode of the size already");
+    QCOMPARE(modelValue(row, "customModes").toStringList().size(), 0);
+
+    activate(toggle);
+    QObject *width = findObject(u"customModeWidthField"_s);
+    QObject *height = findObject(u"customModeHeightField"_s);
+    QObject *refresh = findObject(u"customModeRefreshField"_s);
+    QObject *add = findObject(u"customModeAddButton"_s);
+    QVERIFY2(width && height && refresh && add, "no fields for a custom mode");
+    const auto enter = [this](QObject *field, const QString &text) {
+        auto *item = qobject_cast<QQuickItem *>(field);
+        item->forceActiveFocus(Qt::TabFocusReason);
+        QTest::keyClick(m_window.get(), Qt::Key_A, Qt::ControlModifier);
+        type(text);
+        QTest::keyClick(m_window.get(), Qt::Key_Return);
+        QTest::qWait(50);
+    };
+    enter(width, u"1000"_s);
+    enter(height, u"700"_s);
+    enter(refresh, u"60"_s);
+    activate(add);
+    QCOMPARE(modelValue(row, "customModes").toStringList().size(), 1);
+    capture(u"custom-mode-added"_s, QJsonObject{{u"screen"_s, name}, {u"mode"_s, u"1000x700"_s}});
+    apply();
+    // KWin makes the mode and lists it
+    QTRY_VERIFY_WITH_TIMEOUT(hasMode(doctorOutput(name), custom), 10000);
+
+    reload();
+    QCOMPARE(modelValue(row, "customModes").toStringList().size(), 1);
+    const QStringList resolutions = modelValue(row, "resolutions").toStringList();
+    QVERIFY2(std::any_of(resolutions.cbegin(), resolutions.cend(), [](const QString &text) {
+                 return text.contains(u"1000"_s) && text.contains(u"700"_s);
+             }),
+             qPrintable(resolutions.join(u", "_s)));
+
+    // and the mode goes again
+    QObject *remove = findObject(u"customModeRemoveButton"_s);
+    QVERIFY2(remove, "no way to remove a custom mode");
+    activate(remove);
+    QCOMPARE(modelValue(row, "customModes").toStringList().size(), 0);
+    apply();
+    QTRY_VERIFY_WITH_TIMEOUT(!hasMode(doctorOutput(name), custom), 10000);
 }
 
 void ArrangementViewTest::testScreenContentsFollowBattery()

@@ -64,6 +64,33 @@ class OutputMenusTest : public QObject
         return model->roleNames().key(QByteArray(name), -1);
     }
 
+    static bool addCustomMode(QAbstractItemModel *model, int row, int width, int height, double refresh, bool reduced)
+    {
+        bool done = false;
+        const bool found = QMetaObject::invokeMethod(model,
+                                                     "addCustomMode",
+                                                     Q_RETURN_ARG(bool, done),
+                                                     Q_ARG(int, row),
+                                                     Q_ARG(int, width),
+                                                     Q_ARG(int, height),
+                                                     Q_ARG(double, refresh),
+                                                     Q_ARG(bool, reduced));
+        if (!found) {
+            QTest::qFail("no addCustomMode method", __FILE__, __LINE__);
+        }
+        return done;
+    }
+
+    static bool removeCustomMode(QAbstractItemModel *model, int row, int index)
+    {
+        bool done = false;
+        const bool found = QMetaObject::invokeMethod(model, "removeCustomMode", Q_RETURN_ARG(bool, done), Q_ARG(int, row), Q_ARG(int, index));
+        if (!found) {
+            QTest::qFail("no removeCustomMode method", __FILE__, __LINE__);
+        }
+        return done;
+    }
+
 private Q_SLOTS:
     void initTestCase()
     {
@@ -222,6 +249,71 @@ private Q_SLOTS:
         auto model = handler.outputModel();
         QVERIFY(model->setData(model->index(0, 0), QVariant::fromValue(KScreen::Output::Left), role(model, "rotation")));
         QCOMPARE(model->data(model->index(0, 0), role(model, "physicalSize")).toSize(), QSize(527, 296));
+    }
+
+
+    void customModesAreAddedAndRemoved()
+    {
+        ConfigHandler handler;
+        Setup setup;
+        setup.capabilities = KScreen::Output::Capability::CustomModes;
+        auto output = configure(handler, setup);
+        auto model = handler.outputModel();
+        const int custom = role(model, "customModes");
+        QVERIFY2(custom >= 0, "no customModes role");
+        const auto row = model->index(0, 0);
+        QCOMPARE(model->data(row, custom).toStringList().size(), 0);
+
+        QSignalSpy dirty(&handler, &ConfigHandler::needsSaveChecked);
+        QVERIFY(addCustomMode(model, 0, 1000, 700, 60.0, false));
+        QCOMPARE(output->customModes().size(), 1);
+        QCOMPARE(output->customModes().first().size, QSize(1000, 700));
+        QCOMPARE(output->customModes().first().refreshRate, 60.0f);
+        QVERIFY(output->customModes().first().flags & KScreen::ModeInfo::Flag::Custom);
+        QVERIFY(!(output->customModes().first().flags & KScreen::ModeInfo::Flag::ReducedBlanking));
+        QCOMPARE(model->data(row, custom).toStringList().size(), 1);
+        QVERIFY2(model->data(row, custom).toStringList().first().contains(QStringLiteral("1000")), "the list names the mode");
+        QVERIFY(!dirty.isEmpty());
+        QVERIFY2(dirty.last().first().toBool(), "a new custom mode is something to apply");
+
+        QVERIFY(addCustomMode(model, 0, 1920, 1080, 144.0, true));
+        QCOMPARE(output->customModes().size(), 2);
+        QVERIFY(output->customModes().last().flags & KScreen::ModeInfo::Flag::ReducedBlanking);
+
+        // a custom mode that is already there is no new one
+        QVERIFY(!addCustomMode(model, 0, 1000, 700, 60.0, false));
+        QCOMPARE(output->customModes().size(), 2);
+
+        QVERIFY(removeCustomMode(model, 0, 0));
+        QCOMPARE(output->customModes().size(), 1);
+        QCOMPARE(output->customModes().first().size, QSize(1920, 1080));
+        QVERIFY(!removeCustomMode(model, 0, 5));
+        QVERIFY(!removeCustomMode(model, 0, -1));
+        QVERIFY(removeCustomMode(model, 0, 0));
+        QVERIFY(!dirty.last().first().toBool());
+    }
+
+    void customModesNeedTheCapabilityAndSaneNumbers()
+    {
+        {
+            // KWin without custom modes: nothing to add
+            ConfigHandler handler;
+            auto output = configure(handler, {});
+            QVERIFY(!addCustomMode(handler.outputModel(), 0, 1000, 700, 60.0, false));
+            QCOMPARE(output->customModes().size(), 0);
+        }
+        ConfigHandler handler;
+        Setup setup;
+        setup.capabilities = KScreen::Output::Capability::CustomModes;
+        auto output = configure(handler, setup);
+        auto model = handler.outputModel();
+        QVERIFY(!addCustomMode(model, 0, 0, 700, 60.0, false));
+        QVERIFY(!addCustomMode(model, 0, 1000, -1, 60.0, false));
+        QVERIFY(!addCustomMode(model, 0, 100000, 700, 60.0, false));
+        QVERIFY(!addCustomMode(model, 0, 1000, 700, 0.0, false));
+        QVERIFY(!addCustomMode(model, 0, 1000, 700, 5000.0, false));
+        QVERIFY(!addCustomMode(model, 3, 1000, 700, 60.0, false));
+        QCOMPARE(output->customModes().size(), 0);
     }
 };
 
