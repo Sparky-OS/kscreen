@@ -332,6 +332,43 @@ Kirigami.FormLayout {
         }
     }
 
+    RowLayout {
+        Kirigami.FormData.label: i18nc("@label position of the screen among the others", "Position:")
+        Kirigami.FormData.buddyFor: positionXField
+
+        visible: kcm.multipleScreensAvailable && element.enabled && element.replicationSourceIndex === 0
+
+        QQC2.Label {
+            text: i18nc("@label x coordinate of the screen", "X:")
+        }
+        QQC2.SpinBox {
+            id: positionXField
+            objectName: "positionXField"
+            Layout.maximumWidth: root.maxSpinboxWidth
+            from: -32768
+            to: 32767
+            editable: true
+            value: element.normalizedPosition.x
+            onValueModified: kcm.outputModel.sourceModel.setNormalizedPosition(element.index, Qt.point(value, element.normalizedPosition.y))
+        }
+        QQC2.Label {
+            text: i18nc("@label y coordinate of the screen", "Y:")
+        }
+        QQC2.SpinBox {
+            id: positionYField
+            objectName: "positionYField"
+            Layout.maximumWidth: root.maxSpinboxWidth
+            from: -32768
+            to: 32767
+            editable: true
+            value: element.normalizedPosition.y
+            onValueModified: kcm.outputModel.sourceModel.setNormalizedPosition(element.index, Qt.point(element.normalizedPosition.x, value))
+        }
+        Kirigami.ContextualHelpButton {
+            toolTipText: i18nc("@info", "The corner of the screen, in pixels from the top left corner of all the screens. The screen goes exactly where the numbers say, without snapping.")
+        }
+    }
+
     Orientation {}
 
     RowLayout {

@@ -121,6 +121,11 @@ public:
 
     bool isMoving() const;
     Q_INVOKABLE bool setPosition(int outputIndex, const QPoint &valToPoint, bool snapEnabled = true);
+    /**
+     * Places an output at the given coordinates, counted from the most northwest display corner like
+     * the positions KWin holds, without snapping. The arrangement is counted from its new corner after.
+     */
+    Q_INVOKABLE bool setNormalizedPosition(int outputIndex, const QPoint &position);
 
 Q_SIGNALS:
     void positionChanged();

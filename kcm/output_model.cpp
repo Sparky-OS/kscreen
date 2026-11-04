@@ -361,6 +361,19 @@ bool OutputModel::setPosition(int outputIndex, const QPoint &valToPoint, bool sn
     return true;
 }
 
+bool OutputModel::setNormalizedPosition(int outputIndex, const QPoint &position)
+{
+    if (outputIndex < 0 || outputIndex >= m_outputs.count()) {
+        return false;
+    }
+    const Output &output = m_outputs[outputIndex];
+    const QPoint current = output.ptr->pos();
+    if (current == position) {
+        return false;
+    }
+    return setPosition(outputIndex, output.pos + position - current, false);
+}
+
 bool OutputModel::setData(const QModelIndex &index, const QVariant &value, int role)
 {
     if (index.row() < 0 || index.row() >= m_outputs.count()) {
