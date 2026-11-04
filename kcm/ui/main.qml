@@ -489,6 +489,18 @@ KCM.AbstractKCM {
                 }
             }
 
+            QQC2.Label {
+                id: zoomPercentLabel
+                objectName: "zoomPercentLabel"
+                anchors.left: screenViewOptions.right
+                anchors.verticalCenter: screenViewOptions.verticalCenter
+                anchors.leftMargin: Kirigami.Units.smallSpacing
+                visible: screen.relativeFactor > 0
+                font: Kirigami.Theme.smallFont
+                // How large the screens are drawn: the pixels of the view for one pixel of a screen
+                text: i18nc("@info:status Size of the screens in the arrangement view as a percentage of their size in pixels", "Zoom %1%", Math.round(100 / screen.relativeFactor))
+            }
+
             QQC2.ToolButton {
                 id: screenEdit
                 anchors.right: parent.right
