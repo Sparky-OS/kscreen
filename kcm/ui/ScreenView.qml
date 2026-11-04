@@ -90,6 +90,35 @@ QQC2.ScrollView {
         }
     }
 
+    // The plain wheel pans the view when the person chose it: a notch moves it sixty pixels, Shift or a
+    // sideways wheel move it sideways
+    readonly property int wheelPanStep: 60
+
+    function panByWheel(event, sideways) {
+        const horizontal = sideways ? event.angleDelta.y : event.angleDelta.x;
+        const vertical = sideways ? 0 : event.angleDelta.y;
+        pan = Qt.point(pan.x + horizontal / 120 * wheelPanStep, pan.y + vertical / 120 * wheelPanStep);
+    }
+
+    WheelHandler {
+        enabled: kcm.viewOptions.wheelPans
+        acceptedModifiers: Qt.NoModifier
+        onWheel: event => screenView.panByWheel(event, false)
+    }
+
+    WheelHandler {
+        enabled: kcm.viewOptions.wheelPans
+        orientation: Qt.Horizontal
+        acceptedModifiers: Qt.NoModifier
+        onWheel: event => screenView.panByWheel(event, false)
+    }
+
+    WheelHandler {
+        enabled: kcm.viewOptions.wheelPans
+        acceptedModifiers: Qt.ShiftModifier
+        onWheel: event => screenView.panByWheel(event, true)
+    }
+
     // Drag the empty arrangement, or anywhere with the middle button, to pan
     DragHandler {
         id: panHandler

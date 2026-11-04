@@ -477,6 +477,15 @@ KCM.AbstractKCM {
                             onTriggered: kcm.screenContents.shown = checked
                         }
                     }
+                    QQC2.MenuItem {
+                        action: QQC2.Action {
+                            objectName: "wheelPansAction"
+                            text: i18nc("@option:check The mouse wheel moves the view of the screen arrangement", "Wheel Pans the View")
+                            checkable: true
+                            checked: kcm.viewOptions.wheelPans
+                            onTriggered: kcm.viewOptions.wheelPans = checked
+                        }
+                    }
                 }
             }
 
