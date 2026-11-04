@@ -52,6 +52,7 @@ private Q_SLOTS:
     void init();
     void cleanupTestCase();
 
+    void testViewMenuHoldsItsItems();
     void testScreenContentsFollowBattery();
     void testDragSnaps();
     void testShiftDragDoesNotSnap();
@@ -316,6 +317,20 @@ void ArrangementViewTest::capture(const QString &name, const QJsonObject &expect
     QFile file(m_captureDir + u'/' + name + u".json"_s);
     QVERIFY(file.open(QIODevice::WriteOnly));
     file.write(QJsonDocument(record).toJson());
+}
+
+void ArrangementViewTest::testViewMenuHoldsItsItems()
+{
+    // Zoom In, Zoom Out, Fit All, a separator and Show Screen Contents are the menu's own items,
+    // not items nested inside one another
+    QObject *contents = findObject(u"showScreenContentsAction"_s);
+    QVERIFY2(contents, "no Show Screen Contents action in the arrangement view's menu");
+    QObject *item = contents->parent();
+    QVERIFY(item);
+    auto *menu = item->property("menu").value<QObject *>();
+    QVERIFY2(menu, "Show Screen Contents is not an item of the View menu");
+    const int count = menu->property("count").toInt();
+    QVERIFY2(count >= 5, qPrintable(u"the View menu holds %1 items"_s.arg(count)));
 }
 
 void ArrangementViewTest::testScreenContentsFollowBattery()
