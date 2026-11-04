@@ -10,6 +10,8 @@
 
 #include <QDBusConnection>
 #include <QDBusMessage>
+#include <QDBusPendingCallWatcher>
+#include <QDBusPendingReply>
 
 using namespace Qt::StringLiterals;
 
@@ -92,21 +94,49 @@ void ViewOptions::setActive(bool active)
     updateNames();
 }
 
+QString ViewOptions::errorString() const
+{
+    return m_errorString;
+}
+
+void ViewOptions::setErrorString(const QString &errorString)
+{
+    if (m_errorString == errorString) {
+        return;
+    }
+    m_errorString = errorString;
+    Q_EMIT errorStringChanged();
+}
+
 void ViewOptions::updateNames()
 {
     const bool wanted = m_showScreenNames && m_active;
     if (wanted && !m_timer.isActive()) {
+        // Ask KWin again, in case it could not before
+        setErrorString(QString());
         m_timer.start();
         m_shown = true;
         sendToKWin(u"show"_s);
     } else if (!wanted && m_timer.isActive()) {
         m_timer.stop();
         m_shown = false;
+        setErrorString(QString());
         sendToKWin(u"hide"_s);
     }
 }
 
 void ViewOptions::sendToKWin(const QString &method)
 {
-    QDBusConnection::sessionBus().send(QDBusMessage::createMethodCall(s_locatorService, s_locatorPath, s_locatorInterface, method));
+    const QDBusMessage message = QDBusMessage::createMethodCall(s_locatorService, s_locatorPath, s_locatorInterface, method);
+    auto *watcher = new QDBusPendingCallWatcher(QDBusConnection::sessionBus().asyncCall(message), this);
+    connect(watcher, &QDBusPendingCallWatcher::finished, this, [this, method](QDBusPendingCallWatcher *call) {
+        call->deleteLater();
+        const QDBusPendingReply<> reply = *call;
+        // Only what asks for the names is an error the person should hear of; hiding what is not there is not
+        if (reply.isError() && method == u"show"_s && m_timer.isActive()) {
+            setErrorString(reply.error().message());
+        } else if (!reply.isError() && method == u"show"_s) {
+            setErrorString(QString());
+        }
+    });
 }

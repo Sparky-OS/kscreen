@@ -413,6 +413,19 @@ KCM.AbstractKCM {
                 text: i18nc("@info:status %1 is the reason KWin gives", "Screen contents cannot be shown: %1", kcm.screenContents.errorString)
             }
 
+            QQC2.Label {
+                objectName: "screenNamesErrorLabel"
+                anchors.left: parent.left
+                anchors.right: screenEdit.left
+                anchors.bottom: screenViewOptions.top
+                anchors.margins: Kirigami.Units.smallSpacing
+                anchors.bottomMargin: kcm.screenContents.shown && kcm.screenContents.errorString.length > 0 ? Kirigami.Units.gridUnit * 3 : Kirigami.Units.smallSpacing
+                visible: kcm.viewOptions.errorString.length > 0
+                wrapMode: Text.Wrap
+                font: Kirigami.Theme.smallFont
+                text: i18nc("@info:status %1 is the reason KWin gives", "Screen names cannot be shown: %1", kcm.viewOptions.errorString)
+            }
+
             QQC2.ToolButton {
                 id: screenViewOptions
                 anchors.left: parent.left
