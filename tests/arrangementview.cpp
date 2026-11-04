@@ -72,11 +72,11 @@ private Q_SLOTS:
     void testScreenContentsShown();
     void testScreenContentsRefused();
     void testScreenContentsShowOneEye();
+    void testScreenNamesOverlay();
     void testFlipReachesKWin();
     void testPositionFieldsReachKWin();
     void testPhysicalSizeShown();
     void testCustomModeReachesKWin();
-    void testScreenNamesOverlay();
     void testPlainWheelPansWhenChosen();
     void testZoomPercentage();
 
@@ -390,11 +390,19 @@ void ArrangementViewTest::type(const QString &text)
     }
 }
 
-// Applies what the page holds to the compositor, and waits for the page to take KWin's answer
+// Applies what the page holds to the compositor, and keeps the new settings as a person would: the page asks
+// whether to keep them and reverts them after fifteen seconds if nobody does
 void ArrangementViewTest::apply()
 {
     m_module->save();
     QTest::qWait(500);
+    QQuickItem *keep = findItem(m_window->contentItem(), [](QQuickItem *item) {
+        return item->isVisible() && item->property("text").toString() == u"&Keep"_s;
+    });
+    if (keep) {
+        activate(keep);
+        QTest::qWait(300);
+    }
 }
 
 void ArrangementViewTest::testViewMenuHoldsItsItems()
@@ -631,9 +639,8 @@ void ArrangementViewTest::testScreenNamesOverlay()
     QObject *action = findObject(u"showScreenNamesAction"_s);
     QVERIFY2(action, "no Show Screen Names action in the arrangement view's menu");
     QVERIFY(!action->property("checked").toBool());
-    const QString name = m_screenColors.constBegin().key();
-    const QColor base = m_screenColors.value(name);
-
+    QString name;
+    QColor base;
     const auto look = [&](const QString &file, QRect *box) {
         QProcess process;
         const QString path = m_captureDir + u'/' + file;
@@ -644,8 +651,18 @@ void ArrangementViewTest::testScreenNamesOverlay()
         return differingPixels(QImage(path), base, box);
     };
 
+    // a screen that shows its one colour all over: the window of this test, which the compositor
+    // puts on one of the screens, covers it on that one
     QRect box;
-    QCOMPARE(look(u"names-off.png"_s, &box), 0);
+    for (auto it = m_screenColors.cbegin(); it != m_screenColors.cend(); ++it) {
+        name = it.key();
+        base = it.value();
+        if (look(u"names-off.png"_s, &box) == 0) {
+            break;
+        }
+        name.clear();
+    }
+    QVERIFY2(!name.isEmpty(), "no screen shows only its colour");
 
     QMetaObject::invokeMethod(action, "trigger");
     QVERIFY(action->property("checked").toBool());
