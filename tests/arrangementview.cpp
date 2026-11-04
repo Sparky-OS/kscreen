@@ -15,10 +15,13 @@
 // KSCREEN_TEST_UPOWER_MOCK: set when a python-dbusmock UPower runs on the system bus
 // KSCREEN_TEST_EXPECT_REFUSAL: set when the compositor refuses the KCM's captures
 // KSCREEN_TEST_STEREO_SCREEN: a screen in a side by side 3D mode that shows red on its left half and blue on its right
+// KSCREEN_TEST_FAKE_CONFIG: a libkscreen fake backend file to load instead of a compositor's screens (with KSCREEN_BACKEND=Fake and KSCREEN_BACKEND_INPROCESS=1)
 
 #include <KPluginMetaData>
 #include <KQuickConfigModule>
 #include <KQuickConfigModuleLoader>
+
+#include <kscreen/backendmanager_p.h>
 
 #include <QAbstractItemModel>
 #include <QDBusConnection>
@@ -67,6 +70,7 @@ private Q_SLOTS:
     void testScreenContentsShowOneEye();
     void testFlipReachesKWin();
     void testPositionFieldsReachKWin();
+    void testPhysicalSizeShown();
 
 private:
     struct Screen {
@@ -139,6 +143,10 @@ void ArrangementViewTest::initTestCase()
 {
     if (qEnvironmentVariableIsEmpty("KSCREEN_TEST_ARRANGEMENT")) {
         QSKIP("Needs a compositor with two or more screens: set KSCREEN_TEST_ARRANGEMENT");
+    }
+    const QString fakeConfig = qEnvironmentVariable("KSCREEN_TEST_FAKE_CONFIG");
+    if (!fakeConfig.isEmpty()) {
+        KScreen::BackendManager::instance()->setBackendArgs({{u"TEST_DATA"_s, fakeConfig}});
     }
     m_captureDir = qEnvironmentVariable("KSCREEN_TEST_CAPTURE_DIR");
     if (!m_captureDir.isEmpty()) {
@@ -481,6 +489,38 @@ void ArrangementViewTest::testPositionFieldsReachKWin()
     QTest::qWait(100);
     apply();
     QTRY_COMPARE_WITH_TIMEOUT(doctorOutput(name).value(u"pos"_s).toObject().value(u"y"_s).toInt(), before.value(u"y"_s).toInt(), 10000);
+}
+
+void ArrangementViewTest::testPhysicalSizeShown()
+{
+    // The selected screen's physical size is shown when KWin knows it: millimetres and the diagonal
+    // in inches. KSCREEN_TEST_PHYSICAL_SIZE: "WIDTHxHEIGHT" of the selected screen, empty when unknown.
+    QObject *label = findObject(u"physicalSizeLabel"_s);
+    QVERIFY2(label, "no physical size in the settings of the screen");
+    auto *item = qobject_cast<QQuickItem *>(label);
+    const QString name = evaluate(item, u"element.name"_s).toString();
+    int row = -1;
+    for (const Screen &screen : screens()) {
+        if (screen.name == name) {
+            row = screen.row;
+        }
+    }
+    QVERIFY(row >= 0);
+    const QSize size = modelValue(row, "physicalSize").toSize();
+    const QString expected = qEnvironmentVariable("KSCREEN_TEST_PHYSICAL_SIZE");
+    if (expected.isEmpty()) {
+        QVERIFY2(size.width() <= 0 || size.height() <= 0, "the test says the size is unknown");
+        QVERIFY2(!item->isVisible(), "the size of a screen that does not say it is shown");
+        return;
+    }
+    QCOMPARE(u"%1x%2"_s.arg(size.width()).arg(size.height()), expected);
+    QVERIFY(item->isVisible());
+    const QString text = label->property("text").toString();
+    QVERIFY2(text.contains(QString::number(size.width())) && text.contains(QString::number(size.height())), qPrintable(text));
+    // the diagonal, to a tenth of an inch
+    const double inches = std::hypot(size.width(), size.height()) / 25.4;
+    QVERIFY2(text.contains(QString::number(inches, 'f', 1)), qPrintable(text + u" lacks "_s + QString::number(inches, 'f', 1)));
+    capture(u"physical-size"_s, QJsonObject{{u"screen"_s, name}, {u"size"_s, expected}});
 }
 
 void ArrangementViewTest::testScreenContentsFollowBattery()

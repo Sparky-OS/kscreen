@@ -13,7 +13,7 @@ endif()
 
 ecm_add_test(arrangementview.cpp
     TEST_NAME arrangementview
-    LINK_LIBRARIES Qt6::Test Qt6::Quick Qt6::DBus KF6::KCMUtilsQuick KF6::CoreAddons)
+    LINK_LIBRARIES Qt6::Test Qt6::Quick Qt6::DBus KF6::KCMUtilsQuick KF6::CoreAddons KF6::Screen)
 set_tests_properties(arrangementview PROPERTIES
     ENVIRONMENT_MODIFICATION QT_PLUGIN_PATH=path_list_prepend:${CMAKE_BINARY_DIR}/bin
 )

@@ -189,6 +189,40 @@ private Q_SLOTS:
         QCOMPARE(model->data(model->index(1, 0), normalized).toPoint(), QPoint(0, 0));
         QCOMPARE(model->data(model->index(0, 0), normalized).toPoint(), QPoint(100, 50));
     }
+    void theModelHoldsThePhysicalSize()
+    {
+        {
+            ConfigHandler handler;
+            Setup setup;
+            setup.sizeMm = QSize(527, 296);
+            configure(handler, setup);
+            auto model = handler.outputModel();
+            const int size = role(model, "physicalSize");
+            QVERIFY2(size >= 0, "no physicalSize role");
+            QCOMPARE(model->data(model->index(0, 0), size).toSize(), QSize(527, 296));
+        }
+        {
+            // KWin reports no size for a virtual output, and some displays do not say
+            ConfigHandler handler;
+            configure(handler, {});
+            auto model = handler.outputModel();
+            const int size = role(model, "physicalSize");
+            QVERIFY(size >= 0);
+            const QSize unknown = model->data(model->index(0, 0), size).toSize();
+            QVERIFY2(unknown.width() <= 0 || unknown.height() <= 0, qPrintable(QStringLiteral("%1x%2").arg(unknown.width()).arg(unknown.height())));
+        }
+    }
+
+    void theSizeStaysWhateverTheTurn()
+    {
+        ConfigHandler handler;
+        Setup setup;
+        setup.sizeMm = QSize(527, 296);
+        configure(handler, setup);
+        auto model = handler.outputModel();
+        QVERIFY(model->setData(model->index(0, 0), QVariant::fromValue(KScreen::Output::Left), role(model, "rotation")));
+        QCOMPARE(model->data(model->index(0, 0), role(model, "physicalSize")).toSize(), QSize(527, 296));
+    }
 };
 
 QTEST_MAIN(OutputMenusTest)
