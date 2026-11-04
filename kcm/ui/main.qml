@@ -451,6 +451,7 @@ KCM.AbstractKCM {
                             enabled: screen.zoomed
                             onTriggered: screen.fitAll()
                         }
+                    }
                     QQC2.MenuSeparator {}
                     QQC2.MenuItem {
                         action: QQC2.Action {
@@ -460,7 +461,6 @@ KCM.AbstractKCM {
                             checked: kcm.screenContents.shown
                             onTriggered: kcm.screenContents.shown = checked
                         }
-                    }
                     }
                 }
             }
