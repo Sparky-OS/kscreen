@@ -18,6 +18,7 @@ class ConfigOperation;
 
 class ConfigHandler;
 class ScreenContents;
+class ViewOptions;
 class OrientationSensor;
 class OutputIdentifier;
 
@@ -45,6 +46,7 @@ class KCMKScreen : public KQuickManagedConfigModule
     Q_PROPERTY(bool stereoGlassesSupported READ stereoGlassesSupported CONSTANT)
     Q_PROPERTY(bool stereoSwapEyesSupported READ stereoSwapEyesSupported CONSTANT)
     Q_PROPERTY(ScreenContents *screenContents READ screenContents CONSTANT)
+    Q_PROPERTY(ViewOptions *viewOptions READ viewOptions CONSTANT)
 
 public:
     enum InvalidConfigReason {
@@ -94,6 +96,7 @@ public:
     bool stereoSwapEyesSupported() const;
 
     ScreenContents *screenContents() const;
+    ViewOptions *viewOptions() const;
 
     void doSave();
     Q_INVOKABLE void revertSettings();
@@ -148,6 +151,7 @@ private:
 
     QSortFilterProxyModel *m_outputProxyModel;
     ScreenContents *m_screenContents;
+    ViewOptions *m_viewOptions;
 
     QTimer *m_loadCompressor;
 };

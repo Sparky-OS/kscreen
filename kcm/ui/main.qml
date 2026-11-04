@@ -396,6 +396,12 @@ KCM.AbstractKCM {
                 value: screenContainer.visible && root.Window.visibility !== Window.Hidden && root.Window.visibility !== Window.Minimized
             }
 
+            Binding {
+                target: kcm.viewOptions
+                property: "active"
+                value: screenContainer.visible && root.Window.visibility !== Window.Hidden && root.Window.visibility !== Window.Minimized
+            }
+
             QQC2.Label {
                 anchors.left: parent.left
                 anchors.right: screenEdit.left
@@ -453,6 +459,15 @@ KCM.AbstractKCM {
                         }
                     }
                     QQC2.MenuSeparator {}
+                    QQC2.MenuItem {
+                        action: QQC2.Action {
+                            objectName: "showScreenNamesAction"
+                            text: i18nc("@option:check Keep the name of each screen on the screen as long as the arrangement view is open", "Show Screen Names")
+                            checkable: true
+                            checked: kcm.viewOptions.showScreenNames
+                            onTriggered: kcm.viewOptions.showScreenNames = checked
+                        }
+                    }
                     QQC2.MenuItem {
                         action: QQC2.Action {
                             objectName: "showScreenContentsAction"

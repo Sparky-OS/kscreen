@@ -13,6 +13,7 @@
 #include "kcm_screen_debug.h"
 #include "kwincompositing_setting.h"
 #include "screencontents.h"
+#include "viewoptions.h"
 
 #include <kscreen/config.h>
 #include <kscreen/configmonitor.h>
@@ -55,6 +56,7 @@ KCMKScreen::KCMKScreen(QObject *parent, const KPluginMetaData &data)
     qmlRegisterUncreatableType<KCMKScreen>("org.kde.private.kcm.kscreen", 1, 0, "KCMKScreen", QStringLiteral("For InvalidConfig enum"));
     qmlRegisterUncreatableType<ScreenContents>("org.kde.private.kcm.kscreen", 1, 0, "ScreenContents", QStringLiteral("Use kcm.screenContents"));
     qmlRegisterType<ScreenContentsItem>("org.kde.private.kcm.kscreen", 1, 0, "ScreenContentsItem");
+    qmlRegisterUncreatableType<ViewOptions>("org.kde.private.kcm.kscreen", 1, 0, "ViewOptions", QStringLiteral("Use kcm.viewOptions"));
     Log::instance();
 
     setButtons(Apply);
@@ -62,6 +64,7 @@ KCMKScreen::KCMKScreen(QObject *parent, const KPluginMetaData &data)
 
     m_outputProxyModel = new ScreenSortProxyModel(this);
     m_screenContents = new ScreenContents(this);
+    m_viewOptions = new ViewOptions(this);
 
     m_loadCompressor = new QTimer(this);
     m_loadCompressor->setInterval(1000);
@@ -305,6 +308,11 @@ bool KCMKScreen::stereoSwapEyesSupported() const
 ScreenContents *KCMKScreen::screenContents() const
 {
     return m_screenContents;
+}
+
+ViewOptions *KCMKScreen::viewOptions() const
+{
+    return m_viewOptions;
 }
 
 bool KCMKScreen::primaryOutputSupported() const

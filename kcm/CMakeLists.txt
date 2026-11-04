@@ -7,6 +7,7 @@ target_sources(kcm_kscreen PRIVATE
     kcm.cpp kcm.h
     output_model.cpp output_model.h
     screencontents.cpp screencontents.h
+    viewoptions.cpp viewoptions.h
 )
 
 ecm_qt_declare_logging_category(kcm_kscreen
